@@ -20,12 +20,12 @@ int main() {
   CHECK(level.price() == price);
   CHECK(level.quantity() == quantity);
 
-  CHECK(BookLevel{Price::from_cents(42), Quantity::from_contracts(10)} ==
-        BookLevel{Price::from_cents(42), Quantity::from_contracts(10)});
-  CHECK(BookLevel{Price::from_cents(42), Quantity::from_contracts(10)} !=
-        BookLevel{Price::from_cents(43), Quantity::from_contracts(10)});
-  CHECK(BookLevel{Price::from_cents(42), Quantity::from_contracts(10)} !=
-        BookLevel{Price::from_cents(42), Quantity::from_contracts(11)});
+  CHECK((BookLevel{Price::from_cents(42), Quantity::from_contracts(10)} ==
+         BookLevel{Price::from_cents(42), Quantity::from_contracts(10)}));
+  CHECK((BookLevel{Price::from_cents(42), Quantity::from_contracts(10)} !=
+         BookLevel{Price::from_cents(43), Quantity::from_contracts(10)}));
+  CHECK((BookLevel{Price::from_cents(42), Quantity::from_contracts(10)} !=
+         BookLevel{Price::from_cents(42), Quantity::from_contracts(11)}));
 
   CHECK_THROWS_AS(
       BookLevel(Price::from_cents(50), Quantity::from_contracts(0)),
