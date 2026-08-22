@@ -41,20 +41,5 @@ Run the same smoke test with AddressSanitizer and UndefinedBehaviorSanitizer:
 make sanitize
 ```
 
-## First hand-coded task
-
-Design a `Price` type that stores integer cents for a binary contract. Before
-writing it, decide and document:
-
-1. Which values are valid?
-2. Can invalid values exist after construction?
-3. Which arithmetic operations should the type expose?
-4. What should happen on overflow or invalid input?
-5. Which invariants deserve tests?
-
-Do not begin Kalshi integration until the domain types and their tests are
-complete.
-
 See [docs/LEARNING_BOUNDARY.md](docs/LEARNING_BOUNDARY.md) for the division
 between hand-coded learning work and appropriate AI assistance.
-
