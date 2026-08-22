@@ -14,8 +14,8 @@ namespace arbreplay {
             return Price(static_cast<std::uint8_t>(cents));
         }
 
-        [[nodisccard]] int cents() const noexcept {
-            return _cents;
+        [[nodiscard]] int cents() const noexcept {
+            return static_cast<int>(cents_);
         }
 
     private:
