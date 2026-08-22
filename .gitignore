@@ -1,7 +1,13 @@
 build/
+cmake-build-*/
 out/
 .DS_Store
 compile_commands.json
 .vscode/
 .idea/
 
+# Personal learning material; keep portfolio-facing documentation elsewhere.
+docs/
+learning/
+notes/
+scratch/

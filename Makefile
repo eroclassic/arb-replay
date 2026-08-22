@@ -1,19 +1,24 @@
 .PHONY: configure build test sanitize clean
 
+CMAKE := $(shell command -v cmake 2>/dev/null)
+ifeq ($(CMAKE),)
+CMAKE := /Applications/CLion.app/Contents/bin/cmake/mac/aarch64/bin/cmake
+endif
+CTEST := $(dir $(CMAKE))ctest
+
 configure:
-	cmake --preset debug
+	$(CMAKE) --preset debug
 
 build: configure
-	cmake --build --preset debug
+	$(CMAKE) --build --preset debug
 
 test: build
-	ctest --preset debug
+	$(CTEST) --preset debug
 
 sanitize:
-	cmake --preset sanitizers
-	cmake --build --preset sanitizers
-	ctest --preset sanitizers
+	$(CMAKE) --preset sanitizers
+	$(CMAKE) --build --preset sanitizers
+	$(CTEST) --preset sanitizers
 
 clean:
-	cmake -E remove_directory build
-
+	$(CMAKE) -E remove_directory build

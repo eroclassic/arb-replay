@@ -2,3 +2,6 @@ add_executable(arbreplay_smoke_test smoke_test.cpp)
 target_link_libraries(arbreplay_smoke_test PRIVATE arbreplay_project_options)
 add_test(NAME arbreplay_smoke_test COMMAND arbreplay_smoke_test)
 
+add_executable(arbreplay_price_test price_test.cpp)
+target_link_libraries(arbreplay_price_test PRIVATE arbreplay_project_options)
+add_test(NAME arbreplay_price_test COMMAND arbreplay_price_test)
