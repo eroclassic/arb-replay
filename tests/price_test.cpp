@@ -26,6 +26,13 @@ int main() {
   CHECK(Price::from_cents(42) == Price::from_cents(42));
   CHECK(Price::from_cents(42) != Price::from_cents(43));
 
+  CHECK(zero < full_payout);
+  CHECK(zero <= full_payout);
+  CHECK(full_payout > zero);
+  CHECK(full_payout >= zero);
+  CHECK(Price::from_cents(42) <= Price::from_cents(42));
+  CHECK(Price::from_cents(42) >= Price::from_cents(42));
+
   if (test_support::failures != 0) {
     std::cerr << test_support::failures << " price test(s) failed\n";
     return EXIT_FAILURE;
@@ -34,4 +41,3 @@ int main() {
   std::cout << "All Price tests passed\n";
   return EXIT_SUCCESS;
 }
-

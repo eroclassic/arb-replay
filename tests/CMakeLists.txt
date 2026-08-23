@@ -13,3 +13,7 @@ add_test(NAME arbreplay_quantity_test COMMAND arbreplay_quantity_test)
 add_executable(arbreplay_book_level_test book_level_test.cpp)
 target_link_libraries(arbreplay_book_level_test PRIVATE arbreplay_project_options)
 add_test(NAME arbreplay_book_level_test COMMAND arbreplay_book_level_test)
+
+add_executable(arbreplay_book_side_test book_side_test.cpp)
+target_link_libraries(arbreplay_book_side_test PRIVATE arbreplay_project_options)
+add_test(NAME arbreplay_book_side_test COMMAND arbreplay_book_side_test)
