@@ -26,8 +26,11 @@ else()
   endif()
 endif()
 
+add_library(arbreplay
+  src/book_side.cpp)
+target_link_libraries(arbreplay PUBLIC arbreplay_project_options)
+
 include(CTest)
 if(BUILD_TESTING)
   add_subdirectory(tests)
 endif()
-

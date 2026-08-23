@@ -6,6 +6,43 @@ ArbReplay will reconstruct recorded prediction-market order books and measure
 how many theoretical arbitrage opportunities remain profitable after fees,
 available liquidity, latency, and partial execution are considered.
 
+## Architecture
+
+ArbReplay models binary and multi-outcome prediction markets using the same
+composable order-book hierarchy:
+
+```text
+ReplayEngine
+└── Market
+    └── outcomes: collection of OutcomeBook
+        ├── OutcomeBook: YES
+        │   ├── bids: BookSide
+        │   │   └── levels: map<Price, Quantity>
+        │   └── asks: BookSide
+        │       └── levels: map<Price, Quantity>
+        ├── OutcomeBook: NO
+        │   ├── bids: BookSide
+        │   │   └── levels: map<Price, Quantity>
+        │   └── asks: BookSide
+        │       └── levels: map<Price, Quantity>
+        └── OutcomeBook: additional outcome
+            ├── bids: BookSide
+            └── asks: BookSide
+```
+
+A binary market contains YES and NO outcome books. A multi-outcome market uses
+the same structure with additional mutually exclusive outcomes.
+
+| Type | Responsibility |
+|---|---|
+| `ReplayEngine` | Applies recorded market events chronologically |
+| `Market` | Owns every possible outcome for one prediction question |
+| `OutcomeBook` | Holds the bids and asks for one tradable outcome |
+| `BookSide` | Maintains one ordered collection of bids or asks |
+| `BookLevel` | Pairs one price with its available quantity |
+| `Price` | Represents one contract price from 0 to 100 cents |
+| `Quantity` | Represents a non-negative number of contracts |
+
 ## Repository layout
 
 ```text

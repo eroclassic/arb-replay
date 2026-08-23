@@ -31,6 +31,8 @@ public:
     return BookLevel{iterator->first, iterator->second};
   }
 
+  void update(Price price, Quantity quantity);
+
 private:
   OrderSide side_;
   std::map<Price, Quantity> levels_;
