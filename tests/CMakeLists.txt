@@ -21,3 +21,11 @@ add_test(NAME arbreplay_book_side_test COMMAND arbreplay_book_side_test)
 add_executable(arbreplay_outcome_book_test outcome_book_test.cpp)
 target_link_libraries(arbreplay_outcome_book_test PRIVATE arbreplay)
 add_test(NAME arbreplay_outcome_book_test COMMAND arbreplay_outcome_book_test)
+
+add_executable(arbreplay_outcome_id_test outcome_id_test.cpp)
+target_link_libraries(arbreplay_outcome_id_test PRIVATE arbreplay)
+add_test(NAME arbreplay_outcome_id_test COMMAND arbreplay_outcome_id_test)
+
+add_executable(arbreplay_market_test market_test.cpp)
+target_link_libraries(arbreplay_market_test PRIVATE arbreplay)
+add_test(NAME arbreplay_market_test COMMAND arbreplay_market_test)
