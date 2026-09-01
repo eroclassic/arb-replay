@@ -1,14 +1,18 @@
 #pragma once
 
-#include "arbreplay/outcome_book.hpp"
+#include <arbreplay/outcome_book.hpp>
 #include <arbreplay/outcome_id.hpp>
+
+#include <cstddef>
+#include <map>
+#include <utility>
 
 namespace arbreplay {
 class Market {
 public:
   [[nodiscard]] bool empty() const noexcept { return outcomes_.empty(); }
 
-  [[nodiscard]] size_t size() const noexcept { return outcomes_.size(); }
+  [[nodiscard]] std::size_t size() const noexcept { return outcomes_.size(); }
 
   [[nodiscard]] OutcomeBook *find_outcome(const OutcomeId &id) {
     auto iterator = outcomes_.find(id);
@@ -30,7 +34,7 @@ public:
     return &iterator->second;
   }
 
-  bool add_outcome(OutcomeId id) {
+  [[nodiscard]] bool add_outcome(OutcomeId id) {
     return outcomes_.try_emplace(std::move(id)).second;
   }
 
