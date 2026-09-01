@@ -30,7 +30,7 @@ public:
     return &iterator->second;
   }
 
-  bool add_outcome(const OutcomeId id) {
+  bool add_outcome(OutcomeId id) {
     return outcomes_.try_emplace(std::move(id)).second;
   }
 
