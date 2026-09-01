@@ -29,3 +29,7 @@ add_test(NAME arbreplay_outcome_id_test COMMAND arbreplay_outcome_id_test)
 add_executable(arbreplay_market_test market_test.cpp)
 target_link_libraries(arbreplay_market_test PRIVATE arbreplay)
 add_test(NAME arbreplay_market_test COMMAND arbreplay_market_test)
+
+add_executable(arbreplay_money_test money_test.cpp)
+target_link_libraries(arbreplay_money_test PRIVATE arbreplay)
+add_test(NAME arbreplay_money_test COMMAND arbreplay_money_test)
