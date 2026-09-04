@@ -1,4 +1,5 @@
 #include <arbreplay/money.hpp>
+#include <arbreplay/quantity.hpp>
 
 #include "test_support.hpp"
 
@@ -11,6 +12,7 @@
 
 int main() {
   using arbreplay::Money;
+  using arbreplay::Quantity;
 
   static_assert(!std::is_default_constructible_v<Money>);
 
@@ -47,6 +49,21 @@ int main() {
   CHECK_THROWS_AS(minimum + negative_one, std::overflow_error);
   CHECK_THROWS_AS(maximum - negative_one, std::overflow_error);
   CHECK_THROWS_AS(minimum - one, std::overflow_error);
+
+  CHECK(Money::from_cents(8).multiplied_by(Quantity::from_contracts(6)) ==
+        Money::from_cents(48));
+  CHECK(Money::from_cents(-8).multiplied_by(Quantity::from_contracts(6)) ==
+        Money::from_cents(-48));
+  CHECK(Money::from_cents(0).multiplied_by(Quantity::from_contracts(6)) ==
+        zero);
+  CHECK(Money::from_cents(8).multiplied_by(Quantity::from_contracts(0)) ==
+        zero);
+  CHECK(maximum.multiplied_by(Quantity::from_contracts(1)) == maximum);
+  CHECK(minimum.multiplied_by(Quantity::from_contracts(1)) == minimum);
+
+  const auto two = Quantity::from_contracts(2);
+  CHECK_THROWS_AS(maximum.multiplied_by(two), std::overflow_error);
+  CHECK_THROWS_AS(minimum.multiplied_by(two), std::overflow_error);
 
   if (test_support::failures != 0) {
     std::cerr << test_support::failures << " money test(s) failed\n";
