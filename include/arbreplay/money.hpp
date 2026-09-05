@@ -39,11 +39,11 @@ public:
     const auto minimum = std::numeric_limits<std::int64_t>::min();
 
     if (other.cents_ < 0 && cents_ > maximum + other.cents_) {
-      throw std::overflow_error{"Money substraction overflow"};
+      throw std::overflow_error{"Money subtraction overflow"};
     }
 
     if (other.cents_ > 0 && cents_ < minimum + other.cents_) {
-      throw std::overflow_error{"Money substraction underflow"};
+      throw std::overflow_error{"Money subtraction underflow"};
     }
 
     return Money{cents_ - other.cents_};
