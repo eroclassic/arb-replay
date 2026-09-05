@@ -34,7 +34,9 @@ add_executable(arbreplay_money_test money_test.cpp)
 target_link_libraries(arbreplay_money_test PRIVATE arbreplay)
 add_test(NAME arbreplay_money_test COMMAND arbreplay_money_test)
 
-add_executable(arbreplay_settlement_terms_test settlement_terms_test.cpp)
-target_link_libraries(arbreplay_settlement_terms_test PRIVATE arbreplay)
-add_test(NAME arbreplay_settlement_terms_test
-  COMMAND arbreplay_settlement_terms_test)
+add_executable(arbreplay_complete_set_opportunity_test
+  complete_set_opportunity_test.cpp)
+target_link_libraries(arbreplay_complete_set_opportunity_test
+  PRIVATE arbreplay)
+add_test(NAME arbreplay_complete_set_opportunity_test
+  COMMAND arbreplay_complete_set_opportunity_test)
