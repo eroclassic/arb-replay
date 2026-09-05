@@ -28,9 +28,9 @@ int main() {
   CHECK(opportunity.total_payout() == Money::from_cents(1'000));
   CHECK(opportunity.gross_profit() == Money::from_cents(30));
 
-  CHECK(opportunity == CompleteSetOpportunity{
-                           Money::from_cents(97), Money::from_cents(100),
-                           Quantity::from_contracts(10)});
+  CHECK((opportunity == CompleteSetOpportunity{
+                            Money::from_cents(97), Money::from_cents(100),
+                            Quantity::from_contracts(10)}));
 
   CHECK_THROWS_AS(
       CompleteSetOpportunity(Money::from_cents(-1), Money::from_cents(100),
