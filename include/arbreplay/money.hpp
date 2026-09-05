@@ -1,5 +1,6 @@
 #pragma once
 
+#include <arbreplay/quantity.hpp>
 #include <compare>
 #include <cstdint>
 #include <limits>
@@ -8,7 +9,7 @@
 namespace arbreplay {
 class Money {
 public:
-  [[nodiscard]] static Money from_cents(std::int64_t cents) noexcept {
+  [[nodiscard]] static Money from_cents(std::int64_t cents) {
     return Money{cents};
   }
 
@@ -38,14 +39,35 @@ public:
     const auto minimum = std::numeric_limits<std::int64_t>::min();
 
     if (other.cents_ < 0 && cents_ > maximum + other.cents_) {
-      throw std::overflow_error{"Money subtraction overflow"};
+      throw std::overflow_error{"Money substraction overflow"};
     }
 
     if (other.cents_ > 0 && cents_ < minimum + other.cents_) {
-      throw std::overflow_error{"Money subtraction underflow"};
+      throw std::overflow_error{"Money substraction underflow"};
     }
 
     return Money{cents_ - other.cents_};
+  }
+
+  [[nodiscard]] Money operator*(const Quantity &quantity) const {
+    const auto contracts = static_cast<std::int64_t>(quantity.contracts());
+
+    if (contracts == 0 || cents_ == 0) {
+      return Money{0};
+    }
+
+    const auto maximum = std::numeric_limits<std::int64_t>::max();
+    const auto minimum = std::numeric_limits<std::int64_t>::min();
+
+    if (cents_ > 0 && cents_ > maximum / contracts) {
+      throw std::overflow_error{"Money quantity multiplication overflow"};
+    }
+
+    if (cents_ < 0 && cents_ < minimum / contracts) {
+      throw std::overflow_error{"Money quantity multiplication underflow"};
+    }
+
+    return Money{cents_ * contracts};
   }
 
 private:
