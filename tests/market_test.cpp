@@ -73,6 +73,14 @@ int main() {
     CHECK(snapshot_no->asks().best_level().has_value());
   }
 
+  std::size_t visited = 0;
+  for (const auto &[outcome_id, outcome_book] : snapshot) {
+    CHECK(outcome_id == yes || outcome_id == no);
+    CHECK(outcome_book.bids().size() + outcome_book.asks().size() == 1);
+    ++visited;
+  }
+  CHECK(visited == 2);
+
   if (test_support::failures != 0) {
     std::cerr << test_support::failures << " market test(s) failed\n";
     return EXIT_FAILURE;

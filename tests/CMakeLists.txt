@@ -40,3 +40,9 @@ target_link_libraries(arbreplay_complete_set_opportunity_test
   PRIVATE arbreplay)
 add_test(NAME arbreplay_complete_set_opportunity_test
   COMMAND arbreplay_complete_set_opportunity_test)
+
+add_executable(arbreplay_complete_set_detector_test
+  complete_set_detector_test.cpp)
+target_link_libraries(arbreplay_complete_set_detector_test PRIVATE arbreplay)
+add_test(NAME arbreplay_complete_set_detector_test
+  COMMAND arbreplay_complete_set_detector_test)

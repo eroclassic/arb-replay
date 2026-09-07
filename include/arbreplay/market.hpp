@@ -38,6 +38,10 @@ public:
     return outcomes_.try_emplace(std::move(id)).second;
   }
 
+  [[nodiscard]] auto begin() const noexcept { return outcomes_.begin(); }
+
+  [[nodiscard]] auto end() const noexcept { return outcomes_.end(); }
+
 private:
   std::map<OutcomeId, OutcomeBook> outcomes_;
 };
