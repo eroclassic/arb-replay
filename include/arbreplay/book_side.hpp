@@ -17,6 +17,7 @@ public:
   explicit BookSide(OrderSide side) noexcept : side_(side) {}
 
   [[nodiscard]] OrderSide side() const noexcept { return side_; }
+  [[nodiscard]] const Levels &levels() const noexcept { return levels_; }
   [[nodiscard]] bool empty() const noexcept { return levels_.empty(); }
   [[nodiscard]] std::size_t size() const noexcept { return levels_.size(); }
   [[nodiscard]] std::optional<BookLevel> best_level() const {

@@ -69,6 +69,18 @@ int main() {
     CHECK(best_ask->quantity() == Quantity::from_contracts(20));
   }
 
+  auto ask_iterator = asks.levels().begin();
+  CHECK(ask_iterator->first == Price::from_cents(35));
+  CHECK(ask_iterator->second == Quantity::from_contracts(20));
+  ++ask_iterator;
+  CHECK(ask_iterator->first == Price::from_cents(45));
+  CHECK(ask_iterator->second == Quantity::from_contracts(30));
+  ++ask_iterator;
+  CHECK(ask_iterator->first == Price::from_cents(60));
+  CHECK(ask_iterator->second == Quantity::from_contracts(10));
+  ++ask_iterator;
+  CHECK(ask_iterator == asks.levels().end());
+
   if (test_support::failures != 0) {
     std::cerr << test_support::failures << " book-side test(s) failed\n";
     return EXIT_FAILURE;

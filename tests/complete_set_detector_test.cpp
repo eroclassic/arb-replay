@@ -127,6 +127,48 @@ int main() {
     }
   }
 
+  {
+    Market market;
+    const auto yes = OutcomeId::from_string(std::string{"DEPTH_YES"});
+    const auto no = OutcomeId::from_string(std::string{"DEPTH_NO"});
+    CHECK(market.add_outcome(yes));
+    CHECK(market.add_outcome(no));
+
+    auto *yes_book = market.find_outcome(yes);
+    auto *no_book = market.find_outcome(no);
+    CHECK(yes_book != nullptr);
+    CHECK(no_book != nullptr);
+
+    if (yes_book != nullptr) {
+      yes_book->asks().update(arbreplay::Price::from_cents(42),
+                              Quantity::from_contracts(5));
+      yes_book->asks().update(arbreplay::Price::from_cents(44),
+                              Quantity::from_contracts(20));
+    }
+    if (no_book != nullptr) {
+      no_book->asks().update(arbreplay::Price::from_cents(55),
+                            Quantity::from_contracts(20));
+    }
+
+    const auto opportunity =
+        detect_complete_set_opportunity(market, Money::from_cents(100));
+
+    CHECK(opportunity.has_value());
+    if (opportunity.has_value()) {
+      CHECK(opportunity->levels().size() == 2);
+      CHECK(opportunity->levels()[0].cost_per_set() ==
+            Money::from_cents(97));
+      CHECK(opportunity->levels()[0].quantity() ==
+            Quantity::from_contracts(5));
+      CHECK(opportunity->levels()[1].cost_per_set() ==
+            Money::from_cents(99));
+      CHECK(opportunity->levels()[1].quantity() ==
+            Quantity::from_contracts(15));
+      CHECK(opportunity->total_quantity() == Quantity::from_contracts(20));
+      CHECK(opportunity->gross_profit() == Money::from_cents(30));
+    }
+  }
+
   if (test_support::failures != 0) {
     std::cerr << test_support::failures
               << " complete set detector test(s) failed\n";
