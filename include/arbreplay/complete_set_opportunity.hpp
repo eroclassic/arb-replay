@@ -1,60 +1,81 @@
 #pragma once
 
-#include "arbreplay/money.hpp"
-#include "arbreplay/quantity.hpp"
-#include <stdexcept>
-namespace arbreplay {
+#include <arbreplay/complete_set_opportunity_level.hpp>
+#include <arbreplay/money.hpp>
+#include <arbreplay/quantity.hpp>
 
+#include <cstdint>
+#include <limits>
+#include <stdexcept>
+#include <utility>
+#include <vector>
+
+namespace arbreplay {
 class CompleteSetOpportunity {
 public:
-  CompleteSetOpportunity(Money cost_per_set, Money payout_per_set,
-                         Quantity quantity)
-      : cost_per_set_{cost_per_set},
-        payout_per_set_{payout_per_set}, quantity_{quantity} {
-    if (cost_per_set_.cents() < 0) {
-      throw std::invalid_argument{"cost per set cannot be negative"};
+  CompleteSetOpportunity(
+      Money payout_per_set,
+      std::vector<CompleteSetOpportunityLevel> levels)
+      : payout_per_set_{payout_per_set}, levels_{std::move(levels)} {
+    if (payout_per_set_.cents() <= 0) {
+      throw std::invalid_argument{"payout per set must be positive"};
     }
-
-    if (payout_per_set_ <= cost_per_set_) {
-      throw std::invalid_argument{
-          "payout per set must be greater than cost per set"};
+    if (levels_.empty()) {
+      throw std::invalid_argument{"opportunity must contain at least one level"};
     }
-
-    if (quantity_.contracts() == 0) {
-      throw std::invalid_argument{"quantity must be positive"};
+    for (const auto &level : levels_) {
+      if (level.cost_per_set() >= payout_per_set_) {
+        throw std::invalid_argument{
+            "every opportunity level must cost less than its payout"};
+      }
     }
   }
-
-  [[nodiscard]] Money cost_per_set() const noexcept { return cost_per_set_; }
 
   [[nodiscard]] Money payout_per_set() const noexcept {
     return payout_per_set_;
   }
 
-  [[nodiscard]] Quantity quantity() const noexcept { return quantity_; }
+  [[nodiscard]] const std::vector<CompleteSetOpportunityLevel> &
+  levels() const noexcept {
+    return levels_;
+  }
+
+  [[nodiscard]] Quantity total_quantity() const {
+    std::int64_t total = 0;
+    constexpr auto maximum = std::numeric_limits<std::int64_t>::max();
+
+    for (const auto &level : levels_) {
+      const auto contracts =
+          static_cast<std::int64_t>(level.quantity().contracts());
+      if (total > maximum - contracts) {
+        throw std::overflow_error{"total opportunity quantity overflow"};
+      }
+      total += contracts;
+    }
+    return Quantity::from_contracts(total);
+  }
+
+  [[nodiscard]] Money total_cost() const {
+    auto total = Money::from_cents(0);
+    for (const auto &level : levels_) {
+      total = total + level.total_cost();
+    }
+    return total;
+  }
+
+  [[nodiscard]] Money total_payout() const {
+    return payout_per_set_ * total_quantity();
+  }
+
+  [[nodiscard]] Money gross_profit() const {
+    return total_payout() - total_cost();
+  }
 
   [[nodiscard]] bool
   operator==(const CompleteSetOpportunity &other) const noexcept = default;
 
-  [[nodiscard]] Money profit_per_set() const {
-    return payout_per_set_ - cost_per_set_;
-  }
-
-  [[nodiscard]] Money total_cost() const {
-    return cost_per_set_ * quantity_;
-  }
-
-  [[nodiscard]] Money total_payout() const {
-    return payout_per_set_ * quantity_;
-  }
-
-  [[nodiscard]] Money gross_profit() const {
-    return profit_per_set() * quantity_;
-  }
-
 private:
-  Money cost_per_set_;
   Money payout_per_set_;
-  Quantity quantity_;
+  std::vector<CompleteSetOpportunityLevel> levels_;
 };
 } // namespace arbreplay

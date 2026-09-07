@@ -45,9 +45,11 @@ int main() {
 
     CHECK(opportunity.has_value());
     if (opportunity.has_value()) {
-      CHECK(opportunity->cost_per_set() == Money::from_cents(97));
       CHECK(opportunity->payout_per_set() == Money::from_cents(100));
-      CHECK(opportunity->quantity() == Quantity::from_contracts(10));
+      CHECK(opportunity->levels().size() == 1);
+      CHECK(opportunity->levels().front().cost_per_set() ==
+            Money::from_cents(97));
+      CHECK(opportunity->total_quantity() == Quantity::from_contracts(10));
       CHECK(opportunity->gross_profit() == Money::from_cents(30));
     }
   }
@@ -63,8 +65,10 @@ int main() {
 
     CHECK(opportunity.has_value());
     if (opportunity.has_value()) {
-      CHECK(opportunity->cost_per_set() == Money::from_cents(95));
-      CHECK(opportunity->quantity() == Quantity::from_contracts(8));
+      CHECK(opportunity->levels().size() == 1);
+      CHECK(opportunity->levels().front().cost_per_set() ==
+            Money::from_cents(95));
+      CHECK(opportunity->total_quantity() == Quantity::from_contracts(8));
       CHECK(opportunity->gross_profit() == Money::from_cents(40));
     }
   }
@@ -116,7 +120,7 @@ int main() {
 
     CHECK(opportunity.has_value());
     if (opportunity.has_value()) {
-      CHECK(opportunity->quantity() == Quantity::from_contracts(7));
+      CHECK(opportunity->total_quantity() == Quantity::from_contracts(7));
       CHECK(opportunity->total_cost() == Money::from_cents(630));
       CHECK(opportunity->total_payout() == Money::from_cents(700));
       CHECK(opportunity->gross_profit() == Money::from_cents(70));

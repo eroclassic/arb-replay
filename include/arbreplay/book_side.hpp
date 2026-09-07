@@ -12,6 +12,8 @@ enum class OrderSide { bid, ask };
 
 class BookSide {
 public:
+  using Levels = std::map<Price, Quantity>;
+
   explicit BookSide(OrderSide side) noexcept : side_(side) {}
 
   [[nodiscard]] OrderSide side() const noexcept { return side_; }
@@ -35,6 +37,6 @@ public:
 
 private:
   OrderSide side_;
-  std::map<Price, Quantity> levels_;
+  Levels levels_;
 };
 } // namespace arbreplay
