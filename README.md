@@ -2,9 +2,10 @@
 
 **A C++20 prediction-market arbitrage replay engine.**
 
-ArbReplay will reconstruct recorded prediction-market order books and measure
-how many theoretical arbitrage opportunities remain profitable after fees,
-available liquidity, latency, and partial execution are considered.
+ArbReplay models prediction-market order books and detects depth-aware
+complete-set arbitrage across binary and multi-outcome markets. The current
+engine provides the in-memory market model and gross-opportunity detector;
+deterministic event replay and execution simulation are the next layers.
 
 ## Architecture
 
@@ -12,36 +13,76 @@ ArbReplay models binary and multi-outcome prediction markets using the same
 composable order-book hierarchy:
 
 ```text
-ReplayEngine
-└── Market
-    └── outcomes: collection of OutcomeBook
-        ├── OutcomeBook: YES
-        │   ├── bids: BookSide
-        │   │   └── levels: map<Price, Quantity>
-        │   └── asks: BookSide
-        │       └── levels: map<Price, Quantity>
-        ├── OutcomeBook: NO
-        │   ├── bids: BookSide
-        │   │   └── levels: map<Price, Quantity>
-        │   └── asks: BookSide
-        │       └── levels: map<Price, Quantity>
-        └── OutcomeBook: additional outcome
-            ├── bids: BookSide
-            └── asks: BookSide
+Market
+└── outcomes: map<OutcomeId, OutcomeBook>
+    └── OutcomeBook
+        ├── bids: BookSide
+        │   └── levels: map<Price, Quantity>
+        └── asks: BookSide
+            └── levels: map<Price, Quantity>
+
+detect_complete_set_opportunity(Market, payout)
+└── CompleteSetOpportunity
+    └── levels: vector<CompleteSetOpportunityLevel>
+        └── combined cost per set + executable quantity
 ```
 
 A binary market contains YES and NO outcome books. A multi-outcome market uses
-the same structure with additional mutually exclusive outcomes.
+the same structure with additional mutually exclusive outcomes. The detector
+walks the ask depth without mutating the supplied market.
 
 | Type | Responsibility |
 |---|---|
-| `ReplayEngine` | Applies recorded market events chronologically |
 | `Market` | Owns every possible outcome for one prediction question |
 | `OutcomeBook` | Holds the bids and asks for one tradable outcome |
 | `BookSide` | Maintains one ordered collection of bids or asks |
 | `BookLevel` | Pairs one price with its available quantity |
 | `Price` | Represents one contract price from 0 to 100 cents |
 | `Quantity` | Represents a non-negative number of contracts |
+| `Money` | Represents signed monetary amounts in integer cents with checked arithmetic |
+| `CompleteSetOpportunityLevel` | Represents complete sets available at one combined cost |
+| `CompleteSetOpportunity` | Aggregates every profitable level and calculates total cost, payout, and gross profit |
+
+## Complete-set strategy
+
+A buy-complete-set strategy purchases one contract for every possible outcome.
+Because exactly one outcome settles as the winner, the set produces a fixed
+payout regardless of which outcome occurs.
+
+For a binary market:
+
+```text
+YES best ask           42 cents x 5
+NO best ask            55 cents x 20
+Combined cost          97 cents per set
+Settlement payout     100 cents per set
+Executable quantity     5 sets
+Gross profit           15 cents
+```
+
+Detection uses the strict condition:
+
+```text
+sum of current outcome asks < payout per complete set
+```
+
+Equality is break-even and is not reported as an opportunity. The outcome with
+the least remaining quantity limits each opportunity level. When that liquidity
+is consumed, its cursor advances to the next ask price and the detector
+recalculates the combined cost. This continues until an outcome runs out of
+liquidity or the next combined level is no longer profitable.
+
+### Market-definition assumption
+
+`detect_complete_set_opportunity` assumes that every outcome in the supplied
+`Market` is mutually exclusive and that the outcomes collectively exhaust every
+valid settlement result. The current `Market` model does not independently
+verify this property. Validated market-definition metadata must enforce it
+before external market data is accepted.
+
+The detector currently reports gross opportunities from displayed ask
+liquidity. Fees, latency, queue position, stale quotes, partial fills, and
+legging risk are not yet included.
 
 ## Repository layout
 
@@ -64,7 +105,7 @@ cmake --build --preset debug
 ctest --preset debug
 ```
 
-Run the same smoke test with AddressSanitizer and UndefinedBehaviorSanitizer:
+Run the complete test suite with AddressSanitizer and UndefinedBehaviorSanitizer:
 
 ```sh
 make sanitize

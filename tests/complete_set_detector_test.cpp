@@ -10,6 +10,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
+#include <stdexcept>
 #include <string>
 
 namespace {
@@ -36,6 +38,33 @@ int main() {
   using arbreplay::detect_complete_set_opportunity;
 
   {
+    const Market empty_market;
+    CHECK(!detect_complete_set_opportunity(empty_market,
+                                           Money::from_cents(100))
+               .has_value());
+  }
+
+  {
+    Market market;
+    add_outcome_with_ask(market, "ONLY", 50, 10);
+    CHECK(!detect_complete_set_opportunity(market, Money::from_cents(100))
+               .has_value());
+  }
+
+  {
+    Market market;
+    add_outcome_with_ask(market, "YES", 42, 10);
+    add_outcome_with_ask(market, "NO", 55, 10);
+
+    CHECK_THROWS_AS(
+        detect_complete_set_opportunity(market, Money::from_cents(0)),
+        std::invalid_argument);
+    CHECK_THROWS_AS(
+        detect_complete_set_opportunity(market, Money::from_cents(-1)),
+        std::invalid_argument);
+  }
+
+  {
     Market market;
     add_outcome_with_ask(market, "YES", 42, 20);
     add_outcome_with_ask(market, "NO", 55, 10);
@@ -51,6 +80,110 @@ int main() {
             Money::from_cents(97));
       CHECK(opportunity->total_quantity() == Quantity::from_contracts(10));
       CHECK(opportunity->gross_profit() == Money::from_cents(30));
+    }
+  }
+
+  {
+    Market market;
+    const auto yes = OutcomeId::from_string(std::string{"BOUNDARY_YES"});
+    const auto no = OutcomeId::from_string(std::string{"BOUNDARY_NO"});
+    CHECK(market.add_outcome(yes));
+    CHECK(market.add_outcome(no));
+
+    auto *yes_book = market.find_outcome(yes);
+    auto *no_book = market.find_outcome(no);
+    CHECK(yes_book != nullptr);
+    CHECK(no_book != nullptr);
+
+    if (yes_book != nullptr) {
+      yes_book->asks().update(arbreplay::Price::from_cents(42),
+                              Quantity::from_contracts(5));
+      yes_book->asks().update(arbreplay::Price::from_cents(45),
+                              Quantity::from_contracts(10));
+    }
+    if (no_book != nullptr) {
+      no_book->asks().update(arbreplay::Price::from_cents(55),
+                             Quantity::from_contracts(15));
+    }
+
+    const auto opportunity =
+        detect_complete_set_opportunity(market, Money::from_cents(100));
+
+    CHECK(opportunity.has_value());
+    if (opportunity.has_value()) {
+      CHECK(opportunity->levels().size() == 1);
+      CHECK(opportunity->levels().front().cost_per_set() ==
+            Money::from_cents(97));
+      CHECK(opportunity->levels().front().quantity() ==
+            Quantity::from_contracts(5));
+    }
+  }
+
+  {
+    Market market;
+    add_outcome_with_ask(market, "CUSTOM_A", 50, 4);
+    add_outcome_with_ask(market, "CUSTOM_B", 49, 4);
+
+    const auto opportunity =
+        detect_complete_set_opportunity(market, Money::from_cents(125));
+
+    CHECK(opportunity.has_value());
+    if (opportunity.has_value()) {
+      CHECK(opportunity->payout_per_set() == Money::from_cents(125));
+      CHECK(opportunity->gross_profit() == Money::from_cents(104));
+    }
+  }
+
+  {
+    constexpr auto maximum = std::numeric_limits<std::int64_t>::max();
+    Market market;
+    add_outcome_with_ask(market, "HUGE_YES", 1, maximum);
+    add_outcome_with_ask(market, "HUGE_NO", 1, maximum);
+
+    const auto opportunity =
+        detect_complete_set_opportunity(market, Money::from_cents(100));
+
+    CHECK(opportunity.has_value());
+    if (opportunity.has_value()) {
+      CHECK_THROWS_AS(opportunity->total_cost(), std::overflow_error);
+      CHECK_THROWS_AS(opportunity->total_payout(), std::overflow_error);
+      CHECK_THROWS_AS(opportunity->gross_profit(), std::overflow_error);
+    }
+  }
+
+  {
+    constexpr auto maximum = std::numeric_limits<std::int64_t>::max();
+    Market market;
+    const auto yes = OutcomeId::from_string(std::string{"TOTAL_YES"});
+    const auto no = OutcomeId::from_string(std::string{"TOTAL_NO"});
+    CHECK(market.add_outcome(yes));
+    CHECK(market.add_outcome(no));
+
+    auto *yes_book = market.find_outcome(yes);
+    auto *no_book = market.find_outcome(no);
+    CHECK(yes_book != nullptr);
+    CHECK(no_book != nullptr);
+
+    if (yes_book != nullptr) {
+      yes_book->asks().update(arbreplay::Price::from_cents(1),
+                              Quantity::from_contracts(maximum));
+      yes_book->asks().update(arbreplay::Price::from_cents(2),
+                              Quantity::from_contracts(maximum));
+    }
+    if (no_book != nullptr) {
+      no_book->asks().update(arbreplay::Price::from_cents(1),
+                             Quantity::from_contracts(maximum));
+      no_book->asks().update(arbreplay::Price::from_cents(2),
+                             Quantity::from_contracts(maximum));
+    }
+
+    const auto opportunity =
+        detect_complete_set_opportunity(market, Money::from_cents(100));
+
+    CHECK(opportunity.has_value());
+    if (opportunity.has_value()) {
+      CHECK(opportunity->levels().size() == 2);
+      CHECK_THROWS_AS(opportunity->total_quantity(), std::overflow_error);
     }
   }
 
