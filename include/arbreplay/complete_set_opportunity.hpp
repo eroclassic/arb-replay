@@ -13,15 +13,15 @@
 namespace arbreplay {
 class CompleteSetOpportunity {
 public:
-  CompleteSetOpportunity(
-      Money payout_per_set,
-      std::vector<CompleteSetOpportunityLevel> levels)
+  CompleteSetOpportunity(Money payout_per_set,
+                         std::vector<CompleteSetOpportunityLevel> levels)
       : payout_per_set_{payout_per_set}, levels_{std::move(levels)} {
     if (payout_per_set_.cents() <= 0) {
       throw std::invalid_argument{"payout per set must be positive"};
     }
     if (levels_.empty()) {
-      throw std::invalid_argument{"opportunity must contain at least one level"};
+      throw std::invalid_argument{
+          "opportunity must contain at least one level"};
     }
     for (const auto &level : levels_) {
       if (level.cost_per_set() >= payout_per_set_) {
