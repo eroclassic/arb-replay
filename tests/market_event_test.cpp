@@ -2,7 +2,6 @@
 
 #include "test_support.hpp"
 
-#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -46,11 +45,10 @@ int main() {
   };
   CHECK(removal.quantity().contracts() == 0);
 
-  CHECK_THROWS_AS(
-      MarketEvent(MarketEvent::Timestamp{-1}, std::uint64_t{1}, yes,
-                  OrderSide::bid, Price::from_cents(40),
-                  Quantity::from_contracts(10)),
-      std::invalid_argument);
+  CHECK_THROWS_AS(MarketEvent(MarketEvent::Timestamp{-1}, std::uint64_t{1}, yes,
+                              OrderSide::bid, Price::from_cents(40),
+                              Quantity::from_contracts(10)),
+                  std::invalid_argument);
 
   const auto same_as_event = MarketEvent{
       MarketEvent::Timestamp{1'000'000},

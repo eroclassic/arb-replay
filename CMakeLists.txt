@@ -28,7 +28,8 @@ endif()
 
 add_library(arbreplay
   src/book_side.cpp
-  src/complete_set_detector.cpp)
+  src/complete_set_detector.cpp
+  src/replay_engine.cpp)
 target_link_libraries(arbreplay PUBLIC arbreplay_project_options)
 
 include(CTest)
