@@ -53,3 +53,7 @@ add_executable(arbreplay_complete_set_detector_test
 target_link_libraries(arbreplay_complete_set_detector_test PRIVATE arbreplay)
 add_test(NAME arbreplay_complete_set_detector_test
   COMMAND arbreplay_complete_set_detector_test)
+
+add_executable(arbreplay_market_event_test market_event_test.cpp)
+target_link_libraries(arbreplay_market_event_test PRIVATE arbreplay)
+add_test(NAME arbreplay_market_event_test COMMAND arbreplay_market_event_test)
