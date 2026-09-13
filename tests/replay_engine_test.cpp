@@ -14,6 +14,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
 
 int main() {
   using arbreplay::Market;
@@ -72,9 +73,12 @@ int main() {
   const auto opportunity = engine.apply(no_ask);
   CHECK(opportunity.has_value());
   if (opportunity.has_value()) {
-    CHECK(opportunity->payout_per_set() == Money::from_cents(100));
-    CHECK(opportunity->total_quantity() == Quantity::from_contracts(8));
-    CHECK(opportunity->gross_profit() == Money::from_cents(40));
+    CHECK(opportunity->replay_key() == no_ask.replay_key());
+    CHECK(opportunity->opportunity().payout_per_set() ==
+          Money::from_cents(100));
+    CHECK(opportunity->opportunity().total_quantity() ==
+          Quantity::from_contracts(8));
+    CHECK(opportunity->opportunity().gross_profit() == Money::from_cents(40));
   }
 
   const auto remove_yes_ask = MarketEvent{
@@ -94,6 +98,88 @@ int main() {
       Price::from_cents(10), Quantity::from_contracts(1)};
 
   CHECK_THROWS_AS(engine.apply(unknown_event), std::invalid_argument);
+
+  {
+    Market replay_market;
+    CHECK(replay_market.add_outcome(yes));
+    CHECK(replay_market.add_outcome(no));
+    ReplayEngine replay_engine{std::move(replay_market),
+                               Money::from_cents(100)};
+
+    const std::vector<MarketEvent> no_events{};
+    CHECK(replay_engine.replay(no_events).empty());
+  }
+
+  {
+    Market replay_market;
+    CHECK(replay_market.add_outcome(yes));
+    CHECK(replay_market.add_outcome(no));
+    ReplayEngine replay_engine{std::move(replay_market),
+                               Money::from_cents(100)};
+
+    const auto first_yes_ask = MarketEvent{
+        MarketEvent::Timestamp{2'000}, std::uint64_t{10}, yes,
+        OrderSide::ask, Price::from_cents(45), Quantity::from_contracts(10)};
+    const auto first_no_ask = MarketEvent{
+        MarketEvent::Timestamp{2'001}, std::uint64_t{11}, no, OrderSide::ask,
+        Price::from_cents(50), Quantity::from_contracts(8)};
+    const auto irrelevant_yes_bid = MarketEvent{
+        MarketEvent::Timestamp{2'002}, std::uint64_t{12}, yes,
+        OrderSide::bid, Price::from_cents(35), Quantity::from_contracts(3)};
+    const auto remove_first_yes_ask = MarketEvent{
+        MarketEvent::Timestamp{2'003}, std::uint64_t{13}, yes,
+        OrderSide::ask, Price::from_cents(45), Quantity::from_contracts(0)};
+    const auto second_yes_ask = MarketEvent{
+        MarketEvent::Timestamp{2'004}, std::uint64_t{14}, yes,
+        OrderSide::ask, Price::from_cents(40), Quantity::from_contracts(4)};
+
+    const std::vector events{first_yes_ask,         first_no_ask,
+                             irrelevant_yes_bid,   remove_first_yes_ask,
+                             second_yes_ask};
+    const auto detections = replay_engine.replay(events);
+
+    CHECK(detections.size() == 2);
+    if (detections.size() == 2) {
+      CHECK(detections[0].replay_key() == first_no_ask.replay_key());
+      CHECK(detections[0].opportunity().gross_profit() ==
+            Money::from_cents(40));
+      CHECK(detections[1].replay_key() == second_yes_ask.replay_key());
+      CHECK(detections[1].opportunity().gross_profit() ==
+            Money::from_cents(40));
+    }
+
+    const auto *final_yes_book = replay_engine.market().find_outcome(yes);
+    const auto *final_no_book = replay_engine.market().find_outcome(no);
+    CHECK(final_yes_book != nullptr);
+    CHECK(final_no_book != nullptr);
+    if (final_yes_book != nullptr) {
+      const auto best_ask = final_yes_book->asks().best_level();
+      CHECK(best_ask.has_value());
+      if (best_ask.has_value()) {
+        CHECK(best_ask->price() == Price::from_cents(40));
+        CHECK(best_ask->quantity() == Quantity::from_contracts(4));
+      }
+    }
+    if (final_no_book != nullptr) {
+      const auto best_ask = final_no_book->asks().best_level();
+      CHECK(best_ask.has_value());
+      if (best_ask.has_value()) {
+        CHECK(best_ask->price() == Price::from_cents(50));
+        CHECK(best_ask->quantity() == Quantity::from_contracts(8));
+      }
+    }
+  }
+
+  {
+    Market replay_market;
+    CHECK(replay_market.add_outcome(yes));
+    CHECK(replay_market.add_outcome(no));
+    ReplayEngine replay_engine{std::move(replay_market),
+                               Money::from_cents(100)};
+
+    const std::vector events{unknown_event};
+    CHECK_THROWS_AS(replay_engine.replay(events), std::invalid_argument);
+  }
 
   if (test_support::failures != 0) {
     std::cerr << test_support::failures << " replay engine test(s) failed\n";

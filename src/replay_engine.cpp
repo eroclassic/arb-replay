@@ -14,7 +14,7 @@ ReplayEngine::ReplayEngine(Market market, Money payout_per_set)
 
 const Market &ReplayEngine::market() const noexcept { return market_; }
 
-std::optional<CompleteSetOpportunity>
+std::optional<DetectedCompleteSetOpportunity>
 ReplayEngine::apply(const MarketEvent &event) {
   auto *outcome = market_.find_outcome(event.outcome_id());
   if (outcome == nullptr) {
@@ -27,10 +27,31 @@ ReplayEngine::apply(const MarketEvent &event) {
     break;
   case OrderSide::bid:
     outcome->bids().update(event.price(), event.quantity());
-    break;
+    return std::nullopt;
   }
 
-  return detect_complete_set_opportunity(market_, payout_per_set_);
+  auto opportunity = detect_complete_set_opportunity(market_, payout_per_set_);
+
+  if (!opportunity.has_value()) {
+    return std::nullopt;
+  }
+
+  return DetectedCompleteSetOpportunity{event.replay_key(),
+                                        std::move(*opportunity)};
+}
+
+std::vector<DetectedCompleteSetOpportunity>
+ReplayEngine::replay(const std::vector<MarketEvent> &events) {
+  std::vector<DetectedCompleteSetOpportunity> detections{};
+
+  for (const auto &event : events) {
+    auto detected_event = ReplayEngine::apply(event);
+    if (detected_event.has_value()) {
+      detections.push_back(std::move(*detected_event));
+    }
+  }
+
+  return detections;
 }
 
 } // namespace arbreplay
