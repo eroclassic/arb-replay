@@ -1,33 +1,48 @@
 #pragma once
 
+#include <arbreplay/fixed_point.hpp>
+
 #include <compare>
 #include <cstdint>
 #include <stdexcept>
+#include <string_view>
 
 namespace arbreplay {
 class Price {
 public:
-  [[nodiscard]] static Price from_cents(int cents) {
-    if (cents < 0 || cents > 100) {
-      throw std::out_of_range("Price must be between 0 and 100");
+  static constexpr std::uint8_t precision = fixed_precision;
+  static constexpr std::int64_t scale = fixed_scale;
+
+  [[nodiscard]] static Price from_raw(std::int64_t raw) {
+    if (raw < 0 || raw > scale) {
+      throw std::out_of_range{"Price must be between 0 and 1"};
     }
-
-    return Price{static_cast<std::uint8_t>(cents)};
+    return Price{raw};
   }
 
-  [[nodiscard]] int cents() const noexcept { return static_cast<int>(cents_); }
-
-  [[nodiscard]] Price complement() const {
-    return Price::from_cents(100 - cents());
+  [[nodiscard]] static Price from_cents(std::int64_t cents) {
+    if (cents < 0 || cents > 100) {
+      throw std::out_of_range{"Price must be between 0 and 100 cents"};
+    }
+    return Price{cents * (scale / 100)};
   }
 
-  [[nodiscard]] bool operator==(const Price &other) const noexcept = default;
+  [[nodiscard]] static Price from_decimal(std::string_view value) {
+    return from_raw(detail::parse_fixed(value));
+  }
 
-  auto operator<=>(const Price &other) const noexcept = default;
+  [[nodiscard]] std::int64_t raw() const noexcept { return raw_; }
+
+  [[nodiscard]] Price complement() const noexcept {
+    return Price{scale - raw_};
+  }
+
+  [[nodiscard]] bool operator==(const Price &) const noexcept = default;
+  [[nodiscard]] auto operator<=>(const Price &) const noexcept = default;
 
 private:
-  std::uint8_t cents_;
+  std::int64_t raw_;
 
-  explicit Price(std::uint8_t cents) noexcept : cents_{cents} {}
+  explicit Price(std::int64_t raw) noexcept : raw_{raw} {}
 };
 } // namespace arbreplay

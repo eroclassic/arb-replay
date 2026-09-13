@@ -10,7 +10,7 @@ class BookLevel {
 public:
   explicit BookLevel(Price price, Quantity quantity)
       : price_(price), quantity_(quantity) {
-    if (quantity.contracts() == 0) {
+    if (quantity.raw() == 0) {
       throw std::out_of_range("Book level quantity cannot be zero");
     }
   }

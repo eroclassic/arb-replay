@@ -2,7 +2,7 @@
 
 namespace arbreplay {
 void BookSide::update(Price price, Quantity quantity) {
-  if (quantity.contracts() == 0) {
+  if (quantity.raw() == 0) {
     levels_.erase(price);
     return;
   }

@@ -43,7 +43,7 @@ int main() {
       Price::from_cents(55),
       Quantity::from_contracts(0),
   };
-  CHECK(removal.quantity().contracts() == 0);
+  CHECK(removal.quantity().raw() == 0);
 
   CHECK_THROWS_AS(MarketEvent(MarketEvent::Timestamp{-1}, std::uint64_t{1}, yes,
                               OrderSide::bid, Price::from_cents(40),

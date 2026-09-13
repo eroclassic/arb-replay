@@ -14,12 +14,12 @@ namespace {
 struct AskCursor {
   BookSide::Levels::const_iterator current;
   BookSide::Levels::const_iterator end;
-  std::uint64_t remaining;
+  std::int64_t remaining;
 };
 } // namespace
 [[nodiscard]] std::optional<CompleteSetOpportunity>
 detect_complete_set_opportunity(const Market &market, Money payout_per_set) {
-  if (payout_per_set.cents() <= 0) {
+  if (payout_per_set.raw() <= 0) {
     throw std::invalid_argument{"payout per set must be positive"};
   }
 
@@ -44,18 +44,18 @@ detect_complete_set_opportunity(const Market &market, Money payout_per_set) {
     cursors.push_back(AskCursor{
         best_ask,
         end,
-        best_ask->second.contracts(),
+        best_ask->second.raw(),
     });
   }
 
   std::vector<CompleteSetOpportunityLevel> opportunity_levels;
 
   while (true) {
-    auto combined_cost = Money::from_cents(0);
-    auto minimum_remaining = std::numeric_limits<std::uint64_t>::max();
+    auto combined_cost = Money::from_raw(0);
+    auto minimum_remaining = std::numeric_limits<std::int64_t>::max();
     for (const auto &cursor : cursors) {
       const Price ask_price = cursor.current->first;
-      const Money ask_cost = Money::from_cents(ask_price.cents());
+      const Money ask_cost = Money::from_raw(ask_price.raw());
 
       combined_cost = combined_cost + ask_cost;
       minimum_remaining = std::min(minimum_remaining, cursor.remaining);
@@ -67,7 +67,7 @@ detect_complete_set_opportunity(const Market &market, Money payout_per_set) {
 
     opportunity_levels.push_back(CompleteSetOpportunityLevel{
         combined_cost,
-        Quantity::from_contracts(static_cast<std::int64_t>(minimum_remaining)),
+        Quantity::from_raw(minimum_remaining),
     });
 
     bool liquidity_exhausted = false;
@@ -82,7 +82,7 @@ detect_complete_set_opportunity(const Market &market, Money payout_per_set) {
           continue;
         }
 
-        cursor.remaining = cursor.current->second.contracts();
+        cursor.remaining = cursor.current->second.raw();
       }
     }
 

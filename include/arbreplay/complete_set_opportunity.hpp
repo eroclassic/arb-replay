@@ -16,7 +16,7 @@ public:
   CompleteSetOpportunity(Money payout_per_set,
                          std::vector<CompleteSetOpportunityLevel> levels)
       : payout_per_set_{payout_per_set}, levels_{std::move(levels)} {
-    if (payout_per_set_.cents() <= 0) {
+    if (payout_per_set_.raw() <= 0) {
       throw std::invalid_argument{"payout per set must be positive"};
     }
     if (levels_.empty()) {
@@ -45,18 +45,17 @@ public:
     constexpr auto maximum = std::numeric_limits<std::int64_t>::max();
 
     for (const auto &level : levels_) {
-      const auto contracts =
-          static_cast<std::int64_t>(level.quantity().contracts());
-      if (total > maximum - contracts) {
+      const auto quantity_raw = level.quantity().raw();
+      if (total > maximum - quantity_raw) {
         throw std::overflow_error{"total opportunity quantity overflow"};
       }
-      total += contracts;
+      total += quantity_raw;
     }
-    return Quantity::from_contracts(total);
+    return Quantity::from_raw(total);
   }
 
   [[nodiscard]] Money total_cost() const {
-    auto total = Money::from_cents(0);
+    auto total = Money::from_raw(0);
     for (const auto &level : levels_) {
       total = total + level.total_cost();
     }
@@ -64,7 +63,7 @@ public:
   }
 
   [[nodiscard]] Money total_payout() const {
-    return payout_per_set_ * total_quantity();
+    return payout_per_set_.multiply(total_quantity(), RoundingMode::down);
   }
 
   [[nodiscard]] Money gross_profit() const {

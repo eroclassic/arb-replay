@@ -16,23 +16,25 @@ int main() {
 
   static_assert(!std::is_default_constructible_v<CompleteSetOpportunityLevel>);
 
-  const auto level = CompleteSetOpportunityLevel{
-      Money::from_cents(97), Quantity::from_contracts(5)};
+  const auto level = CompleteSetOpportunityLevel{Money::from_cents(97),
+                                                 Quantity::from_contracts(5)};
 
   CHECK(level.cost_per_set() == Money::from_cents(97));
   CHECK(level.quantity() == Quantity::from_contracts(5));
   CHECK(level.total_cost() == Money::from_cents(485));
-  CHECK((level == CompleteSetOpportunityLevel{
-                      Money::from_cents(97), Quantity::from_contracts(5)}));
+  CHECK((level == CompleteSetOpportunityLevel{Money::from_cents(97),
+                                              Quantity::from_contracts(5)}));
 
-  CHECK_THROWS_AS(
-      CompleteSetOpportunityLevel(Money::from_cents(-1),
-                                  Quantity::from_contracts(1)),
-      std::invalid_argument);
-  CHECK_THROWS_AS(
-      CompleteSetOpportunityLevel(Money::from_cents(97),
-                                  Quantity::from_contracts(0)),
-      std::invalid_argument);
+  const auto fractional_level = CompleteSetOpportunityLevel{
+      Money::from_decimal("0.333333"), Quantity::from_decimal("1.5")};
+  CHECK(fractional_level.total_cost() == Money::from_decimal("0.5"));
+
+  CHECK_THROWS_AS(CompleteSetOpportunityLevel(Money::from_cents(-1),
+                                              Quantity::from_contracts(1)),
+                  std::invalid_argument);
+  CHECK_THROWS_AS(CompleteSetOpportunityLevel(Money::from_cents(97),
+                                              Quantity::from_contracts(0)),
+                  std::invalid_argument);
 
   if (test_support::failures != 0) {
     std::cerr << test_support::failures

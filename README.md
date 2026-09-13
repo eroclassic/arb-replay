@@ -4,8 +4,9 @@
 
 ArbReplay models prediction-market order books and detects depth-aware
 complete-set arbitrage across binary and multi-outcome markets. The current
-engine provides the in-memory market model and gross-opportunity detector;
-deterministic event replay and execution simulation are the next layers.
+engine provides the in-memory market model, gross-opportunity detector, and
+deterministic event replay. CSV ingestion and execution simulation are the next
+layers.
 
 ## Architecture
 
@@ -37,9 +38,9 @@ walks the ask depth without mutating the supplied market.
 | `OutcomeBook` | Holds the bids and asks for one tradable outcome |
 | `BookSide` | Maintains one ordered collection of bids or asks |
 | `BookLevel` | Pairs one price with its available quantity |
-| `Price` | Represents one contract price from 0 to 100 cents |
-| `Quantity` | Represents a non-negative number of contracts |
-| `Money` | Represents signed monetary amounts in integer cents with checked arithmetic |
+| `Price` | Represents a contract price from 0 through 1 with six-decimal fixed-point precision |
+| `Quantity` | Represents a non-negative contract quantity with six-decimal fixed-point precision |
+| `Money` | Represents signed monetary amounts with six-decimal fixed-point precision and checked arithmetic |
 | `CompleteSetOpportunityLevel` | Represents complete sets available at one combined cost |
 | `CompleteSetOpportunity` | Aggregates every profitable level and calculates total cost, payout, and gross profit |
 
@@ -83,6 +84,17 @@ before external market data is accepted.
 The detector currently reports gross opportunities from displayed ask
 liquidity. Fees, latency, queue position, stale quotes, partial fills, and
 legging risk are not yet included.
+
+### Numeric representation
+
+`Price`, `Quantity`, and `Money` store signed 64-bit raw integers at a fixed
+scale of 1,000,000. Venue decimal strings are parsed directly into this format;
+floating-point conversion is not used. This represents sub-cent prices and
+fractional contracts from venue feeds while keeping replay deterministic.
+
+Opportunity costs round upward and payouts round downward whenever a product
+cannot be represented exactly. This conservative policy prevents fractional
+rounding from creating false-positive arbitrage.
 
 ## Repository layout
 
