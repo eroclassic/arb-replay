@@ -1,6 +1,7 @@
 #include "arbreplay/replay_engine.hpp"
 #include "arbreplay/book_side.hpp"
 #include "arbreplay/complete_set_detector.hpp"
+#include "arbreplay/market_event.hpp"
 
 #include <optional>
 #include <stdexcept>
@@ -43,9 +44,35 @@ ReplayEngine::apply(const MarketEvent &event) {
 std::vector<DetectedCompleteSetOpportunity>
 ReplayEngine::replay(const std::vector<MarketEvent> &events) {
   std::vector<DetectedCompleteSetOpportunity> detections{};
+  auto sorted_events = events;
+  std::sort(sorted_events.begin(), sorted_events.end(),
+            [](const MarketEvent &left, const MarketEvent &right) {
+              return left.replay_key() < right.replay_key();
+            });
 
-  for (const auto &event : events) {
-    auto detected_event = ReplayEngine::apply(event);
+  std::vector<MarketEvent> unique_events{};
+  unique_events.reserve(sorted_events.size());
+
+  for (const auto &event : sorted_events) {
+    if (unique_events.empty()) {
+      unique_events.push_back(event);
+      continue;
+    }
+
+    const auto &prev = unique_events.back();
+    if (event.replay_key() == prev.replay_key()) {
+      if (event != prev) {
+        throw std::invalid_argument{
+            "Two events with same key but different payload"};
+      }
+      continue;
+    }
+
+    unique_events.push_back(event);
+  }
+
+  for (const auto &event : unique_events) {
+    auto detected_event = apply(event);
     if (detected_event.has_value()) {
       detections.push_back(std::move(*detected_event));
     }

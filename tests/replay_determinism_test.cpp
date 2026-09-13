@@ -40,10 +40,10 @@ int main() {
 
   const auto earlier_yes_ask = MarketEvent{
       MarketEvent::Timestamp{1'000}, std::uint64_t{1}, yes, OrderSide::ask,
-      Price::from_cents(40), Quantity::from_contracts(5)};
+      Price::from_cents(40), Quantity::from_contracts(4)};
   const auto later_sequence_yes_ask = MarketEvent{
       MarketEvent::Timestamp{1'000}, std::uint64_t{2}, yes, OrderSide::ask,
-      Price::from_cents(60), Quantity::from_contracts(5)};
+      Price::from_cents(40), Quantity::from_contracts(5)};
   const auto later_no_ask = MarketEvent{
       MarketEvent::Timestamp{1'001}, std::uint64_t{1}, no, OrderSide::ask,
       Price::from_cents(50), Quantity::from_contracts(5)};
@@ -75,7 +75,8 @@ int main() {
     const auto final_yes_ask = unsorted_yes_book->asks().best_level();
     CHECK(final_yes_ask.has_value());
     if (final_yes_ask.has_value()) {
-      CHECK(final_yes_ask->price() == Price::from_cents(60));
+      CHECK(final_yes_ask->price() == Price::from_cents(40));
+      CHECK(final_yes_ask->quantity() == Quantity::from_contracts(5));
     }
   }
 
