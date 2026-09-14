@@ -6,8 +6,9 @@ compile_commands.json
 .vscode/
 .idea/
 
-# Personal learning material; keep portfolio-facing documentation elsewhere.
-docs/
+# Personal learning material; keep portfolio-facing documentation ignored.
+docs/*
+!docs/csv-format.md
 learning/
 notes/
 scratch/

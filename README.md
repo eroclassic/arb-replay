@@ -96,6 +96,12 @@ Opportunity costs round upward and payouts round downward whenever a product
 cannot be represented exactly. This conservative policy prevents fractional
 rounding from creating false-positive arbitrage.
 
+## CSV input
+
+Recorded venue data is normalized into absolute order-book level updates before
+replay. See [the normalized market-event CSV format](docs/csv-format.md) and
+[the sample event file](data/sample_events.csv).
+
 ## Repository layout
 
 ```text

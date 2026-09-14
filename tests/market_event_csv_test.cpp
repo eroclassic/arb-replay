@@ -27,10 +27,10 @@ int main() {
   using arbreplay::Quantity;
 
   {
-    const auto events = parse(
-        "observed_at_ns,sequence,outcome_id,side,price,quantity\n"
-        "1000000000,1,YES,ask,0.420000,10.000000\n"
-        "1000000000,2,NO,bid,0.550001,8.500000\n");
+    const auto events =
+        parse("observed_at_ns,sequence,outcome_id,side,price,quantity\n"
+              "1000000000,1,YES,ask,0.420000,10.000000\n"
+              "1000000000,2,NO,bid,0.550001,8.500000\n");
 
     CHECK(events.size() == 2);
     if (events.size() == 2) {
@@ -53,9 +53,9 @@ int main() {
   }
 
   {
-    const auto removals = parse(
-        "observed_at_ns,sequence,outcome_id,side,price,quantity\r\n"
-        "2000000000,3,YES,ask,0.420000,0\r\n");
+    const auto removals =
+        parse("observed_at_ns,sequence,outcome_id,side,price,quantity\r\n"
+              "2000000000,3,YES,ask,0.420000,0\r\n");
 
     CHECK(removals.size() == 1);
     if (removals.size() == 1) {
@@ -64,8 +64,8 @@ int main() {
   }
 
   {
-    const auto no_events = parse(
-        "observed_at_ns,sequence,outcome_id,side,price,quantity\n");
+    const auto no_events =
+        parse("observed_at_ns,sequence,outcome_id,side,price,quantity\n");
     CHECK(no_events.empty());
   }
 
