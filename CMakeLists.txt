@@ -33,6 +33,10 @@ add_library(arbreplay
   src/replay_engine.cpp)
 target_link_libraries(arbreplay PUBLIC arbreplay_project_options)
 
+add_executable(arbreplay_cli app/main.cpp)
+set_target_properties(arbreplay_cli PROPERTIES OUTPUT_NAME arbreplay)
+target_link_libraries(arbreplay_cli PRIVATE arbreplay)
+
 include(CTest)
 if(BUILD_TESTING)
   add_subdirectory(tests)

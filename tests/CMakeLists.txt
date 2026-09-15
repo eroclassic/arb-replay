@@ -71,3 +71,9 @@ add_executable(arbreplay_replay_determinism_test replay_determinism_test.cpp)
 target_link_libraries(arbreplay_replay_determinism_test PRIVATE arbreplay)
 add_test(NAME arbreplay_replay_determinism_test
   COMMAND arbreplay_replay_determinism_test)
+
+add_test(NAME arbreplay_cli_replay_test
+  COMMAND ${CMAKE_COMMAND}
+    -DARBREPLAY_CLI=$<TARGET_FILE:arbreplay_cli>
+    -DSAMPLE_EVENTS=${CMAKE_SOURCE_DIR}/data/sample_events.csv
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/cli_replay_test.cmake)
