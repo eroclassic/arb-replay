@@ -77,3 +77,13 @@ add_test(NAME arbreplay_cli_replay_test
     -DARBREPLAY_CLI=$<TARGET_FILE:arbreplay_cli>
     -DSAMPLE_EVENTS=${CMAKE_SOURCE_DIR}/data/sample_events.csv
     -P ${CMAKE_CURRENT_SOURCE_DIR}/cli_replay_test.cmake)
+
+foreach(test_case IN ITEMS invalid_path invalid_payout incorrect_arguments)
+  add_test(NAME arbreplay_cli_${test_case}_test
+    COMMAND ${CMAKE_COMMAND}
+      -DARBREPLAY_CLI=$<TARGET_FILE:arbreplay_cli>
+      -DSAMPLE_EVENTS=${CMAKE_SOURCE_DIR}/data/sample_events.csv
+      -DMISSING_EVENTS=${CMAKE_BINARY_DIR}/missing-events.csv
+      -DTEST_CASE=${test_case}
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/cli_failure_test.cmake)
+endforeach()

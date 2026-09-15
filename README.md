@@ -5,8 +5,8 @@
 ArbReplay models prediction-market order books and detects depth-aware
 complete-set arbitrage across binary and multi-outcome markets. The current
 engine provides the in-memory market model, gross-opportunity detector, and
-deterministic event replay. CSV ingestion and execution simulation are the next
-layers.
+deterministic event replay with strict CSV ingestion and an offline CLI.
+Execution simulation is the next layer.
 
 ## Architecture
 
@@ -122,6 +122,26 @@ cmake --preset debug
 cmake --build --preset debug
 ctest --preset debug
 ```
+
+## Replay CLI
+
+Replay a normalized CSV file as a binary YES/NO market:
+
+```sh
+./build/debug/arbreplay replay data/sample_events.csv --payout 1.000000
+```
+
+`--payout` is required and must be a positive fixed-point decimal. The command
+prints the number of parsed events and detected gross opportunities:
+
+```text
+events: 6
+detections: 2
+```
+
+The CLI reports detected opportunities, not executed trades. It does not add
+their profits together because consecutive detections may refer to overlapping
+order-book liquidity.
 
 Run the complete test suite with AddressSanitizer and UndefinedBehaviorSanitizer:
 
