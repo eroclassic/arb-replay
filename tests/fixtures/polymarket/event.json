@@ -1,0 +1,19 @@
+{
+  "id": "event-1",
+  "slug": "example-event",
+  "title": "Will the example happen?",
+  "markets": [
+    {
+      "id": "market-1",
+      "question": "Will the example happen?",
+      "conditionId": "condition-1",
+      "slug": "example-market",
+      "active": true,
+      "closed": false,
+      "acceptingOrders": true,
+      "enableOrderBook": true,
+      "outcomes": "[\"Yes\", \"No\"]",
+      "clobTokenIds": "[\"yes-token\", \"no-token\"]"
+    }
+  ]
+}

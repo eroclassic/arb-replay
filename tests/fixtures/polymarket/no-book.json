@@ -1,0 +1,17 @@
+{
+  "market": "condition-1",
+  "asset_id": "no-token",
+  "timestamp": "1760000000001",
+  "hash": "no-hash",
+  "bids": [
+    {"price": "0.550000", "size": "7.000000"}
+  ],
+  "asks": [
+    {"price": "0.570000", "size": "30.000000"},
+    {"price": "0.560000", "size": "9.000000"}
+  ],
+  "min_order_size": "1",
+  "tick_size": "0.000001",
+  "neg_risk": false,
+  "last_trade_price": "0.550000"
+}

@@ -143,6 +143,54 @@ The CLI reports detected opportunities, not executed trades. It does not add
 their profits together because consecutive detections may refer to overlapping
 order-book liquidity.
 
+## Polymarket snapshot capture
+
+The standard-library-only adapter captures one live binary Polymarket order
+book and converts it into ArbReplay's normalized CSV format. It requires
+Python 3.10 or newer.
+
+Copy the event slug from its Polymarket URL, then run:
+
+```sh
+python3 tools/polymarket_snapshot.py EVENT_SLUG \
+  --output data/recordings/EVENT_SLUG
+```
+
+If an event contains multiple eligible markets, the command lists their slugs.
+Select one explicitly:
+
+```sh
+python3 tools/polymarket_snapshot.py EVENT_SLUG \
+  --market MARKET_SLUG \
+  --output data/recordings/EVENT_SLUG
+```
+
+Each capture preserves the raw event and order-book responses alongside the
+normalized input:
+
+```text
+data/recordings/EVENT_SLUG/
+├── event.json
+├── yes-book.json
+├── no-book.json
+├── metadata.json
+└── events.csv
+```
+
+Replay the resulting snapshot with its recorded payout:
+
+```sh
+./build/debug/arbreplay replay \
+  data/recordings/EVENT_SLUG/events.csv \
+  --payout 1.000000
+```
+
+The adapter currently captures a point-in-time snapshot, not historical data
+or a live stream. ArbReplay applies normalized rows one at a time, so detections
+reported while the initial snapshot is being assembled are not yet reliable
+trading signals. Atomic snapshot seeding is required before using those
+detections as research results.
+
 Run the complete test suite with AddressSanitizer and UndefinedBehaviorSanitizer:
 
 ```sh

@@ -5,6 +5,11 @@ out/
 compile_commands.json
 .vscode/
 .idea/
+__pycache__/
+*.py[cod]
+
+# Local venue captures can be large and are reproducible from public APIs.
+data/recordings/
 
 # Personal learning material; keep portfolio-facing documentation ignored.
 docs/*

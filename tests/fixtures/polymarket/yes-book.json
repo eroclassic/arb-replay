@@ -1,0 +1,17 @@
+{
+  "market": "condition-1",
+  "asset_id": "yes-token",
+  "timestamp": "1760000000000",
+  "hash": "yes-hash",
+  "bids": [
+    {"price": "0.400000", "size": "20.000000"},
+    {"price": "0.410001", "size": "12.500000"}
+  ],
+  "asks": [
+    {"price": "0.430000", "size": "8.000000"}
+  ],
+  "min_order_size": "1",
+  "tick_size": "0.000001",
+  "neg_risk": false,
+  "last_trade_price": "0.420000"
+}
