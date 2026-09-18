@@ -177,12 +177,17 @@ data/recordings/EVENT_SLUG/
 └── events.csv
 ```
 
-Replay the resulting snapshot with its recorded payout:
+Replay the resulting snapshot directory. The CLI finds `events.csv` and reads
+`payout_per_set` from `metadata.json` automatically:
 
 ```sh
-./build/debug/arbreplay replay \
-  data/recordings/EVENT_SLUG/events.csv \
-  --payout 1.000000
+./build/debug/arbreplay replay data/recordings/EVENT_SLUG
+```
+
+For standalone CSV files, continue to supply the payout explicitly:
+
+```sh
+./build/debug/arbreplay replay data/sample_events.csv --payout 1.000000
 ```
 
 The adapter currently captures a point-in-time snapshot, not historical data

@@ -103,9 +103,7 @@ class PolymarketSnapshotTest(unittest.TestCase):
                     [
                         arbreplay_cli,
                         "replay",
-                        str(events_path),
-                        "--payout",
-                        "1.000000",
+                        str(output),
                     ],
                     check=False,
                     capture_output=True,
@@ -209,6 +207,42 @@ class PolymarketSnapshotTest(unittest.TestCase):
                     self.books,
                     OBSERVED_AT_NS,
                 )
+
+    def test_cli_rejects_snapshot_without_metadata(self) -> None:
+        arbreplay_cli = os.environ.get("ARBREPLAY_CLI")
+        if not arbreplay_cli:
+            self.skipTest("ARBREPLAY_CLI is not set")
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            completed = subprocess.run(
+                [arbreplay_cli, "replay", temporary_directory],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("unable to open snapshot metadata", completed.stderr)
+
+    def test_cli_rejects_snapshot_without_events_csv(self) -> None:
+        arbreplay_cli = os.environ.get("ARBREPLAY_CLI")
+        if not arbreplay_cli:
+            self.skipTest("ARBREPLAY_CLI is not set")
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            snapshot = Path(temporary_directory)
+            (snapshot / "metadata.json").write_text(
+                '{"payout_per_set":"1.000000"}\n', encoding="utf-8"
+            )
+            completed = subprocess.run(
+                [arbreplay_cli, "replay", str(snapshot)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("unable to open event CSV", completed.stderr)
 
 
 if __name__ == "__main__":
