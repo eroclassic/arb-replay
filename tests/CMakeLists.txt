@@ -72,6 +72,11 @@ target_link_libraries(arbreplay_replay_determinism_test PRIVATE arbreplay)
 add_test(NAME arbreplay_replay_determinism_test
   COMMAND arbreplay_replay_determinism_test)
 
+add_executable(arbreplay_replay_snapshot_test replay_snapshot_test.cpp)
+target_link_libraries(arbreplay_replay_snapshot_test PRIVATE arbreplay)
+add_test(NAME arbreplay_replay_snapshot_test
+  COMMAND arbreplay_replay_snapshot_test)
+
 add_test(NAME arbreplay_cli_replay_test
   COMMAND ${CMAKE_COMMAND}
     -DARBREPLAY_CLI=$<TARGET_FILE:arbreplay_cli>
