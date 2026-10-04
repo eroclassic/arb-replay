@@ -71,7 +71,7 @@ int main() {
 
     // A snapshot is committed as one unit and therefore produces at most one
     // detection, after every book level has been installed.
-    const auto detection = engine.seed_snapshot(snapshot);
+    const auto detection = engine.apply_snapshot(snapshot);
 
     CHECK(detection.has_value());
     if (detection.has_value()) {
@@ -105,9 +105,9 @@ int main() {
     ReplayEngine shuffled_engine{make_binary_market(yes, no),
                                  Money::from_cents(100)};
 
-    const auto sorted_detection = sorted_engine.seed_snapshot(sorted_snapshot);
+    const auto sorted_detection = sorted_engine.apply_snapshot(sorted_snapshot);
     const auto shuffled_detection =
-        shuffled_engine.seed_snapshot(shuffled_snapshot);
+        shuffled_engine.apply_snapshot(shuffled_snapshot);
 
     CHECK(sorted_detection == shuffled_detection);
     const auto *sorted_yes = sorted_engine.market().find_outcome(yes);
@@ -128,6 +128,115 @@ int main() {
   }
 
   {
+    // Later sequence wins even when the caller supplies the rows out of order.
+    const auto earlier_yes_ask = MarketEvent{MarketEvent::Timestamp{1'500},
+                                             std::uint64_t{1},
+                                             yes,
+                                             OrderSide::ask,
+                                             Price::from_cents(40),
+                                             Quantity::from_contracts(8)};
+    const auto later_yes_ask = MarketEvent{MarketEvent::Timestamp{1'500},
+                                           std::uint64_t{2},
+                                           yes,
+                                           OrderSide::ask,
+                                           Price::from_cents(40),
+                                           Quantity::from_contracts(3)};
+    const auto no_ask = MarketEvent{MarketEvent::Timestamp{1'500},
+                                    std::uint64_t{3},
+                                    no,
+                                    OrderSide::ask,
+                                    Price::from_cents(50),
+                                    Quantity::from_contracts(10)};
+    const std::vector shuffled_snapshot{no_ask, later_yes_ask, earlier_yes_ask};
+
+    ReplayEngine engine{make_binary_market(yes, no), Money::from_cents(100)};
+    const auto detection = engine.apply_snapshot(shuffled_snapshot);
+
+    CHECK(detection.has_value());
+    if (detection.has_value()) {
+      CHECK(detection->replay_key() == no_ask.replay_key());
+      CHECK(detection->opportunity().total_quantity() ==
+            Quantity::from_contracts(3));
+    }
+    const auto *yes_book = engine.market().find_outcome(yes);
+    CHECK(yes_book != nullptr);
+    if (yes_book != nullptr) {
+      const auto best_ask = yes_book->asks().best_level();
+      CHECK(best_ask.has_value());
+      if (best_ask.has_value()) {
+        CHECK(best_ask->quantity() == Quantity::from_contracts(3));
+      }
+    }
+  }
+
+  {
+    ReplayEngine engine{make_binary_market(yes, no), Money::from_cents(100)};
+    const auto old_yes_ask = MarketEvent{MarketEvent::Timestamp{1'800},
+                                         std::uint64_t{1},
+                                         yes,
+                                         OrderSide::ask,
+                                         Price::from_cents(20),
+                                         Quantity::from_contracts(5)};
+    static_cast<void>(engine.apply(old_yes_ask));
+
+    const std::vector replacement_snapshot{
+        MarketEvent{MarketEvent::Timestamp{1'900}, std::uint64_t{1}, yes,
+                    OrderSide::ask, Price::from_cents(40),
+                    Quantity::from_contracts(4)},
+        MarketEvent{MarketEvent::Timestamp{1'900}, std::uint64_t{2}, no,
+                    OrderSide::ask, Price::from_cents(50),
+                    Quantity::from_contracts(4)}};
+    const auto detection = engine.apply_snapshot(replacement_snapshot);
+
+    CHECK(detection.has_value());
+    const auto *yes_book = engine.market().find_outcome(yes);
+    CHECK(yes_book != nullptr);
+    if (yes_book != nullptr) {
+      CHECK(yes_book->asks().size() == 1);
+      const auto best_ask = yes_book->asks().best_level();
+      CHECK(best_ask.has_value());
+      if (best_ask.has_value()) {
+        CHECK(best_ask->price() == Price::from_cents(40));
+      }
+    }
+  }
+
+  {
+    ReplayEngine engine{make_binary_market(yes, no), Money::from_cents(100)};
+    const auto existing_yes_ask = MarketEvent{MarketEvent::Timestamp{2'100},
+                                              std::uint64_t{1},
+                                              yes,
+                                              OrderSide::ask,
+                                              Price::from_cents(35),
+                                              Quantity::from_contracts(2)};
+    static_cast<void>(engine.apply(existing_yes_ask));
+
+    const std::vector conflicting_snapshot{
+        MarketEvent{MarketEvent::Timestamp{2'200}, std::uint64_t{1}, no,
+                    OrderSide::ask, Price::from_cents(50),
+                    Quantity::from_contracts(5)},
+        MarketEvent{MarketEvent::Timestamp{2'200}, std::uint64_t{1}, no,
+                    OrderSide::ask, Price::from_cents(51),
+                    Quantity::from_contracts(5)}};
+
+    CHECK_THROWS_AS(engine.apply_snapshot(conflicting_snapshot),
+                    std::invalid_argument);
+    const auto *yes_book = engine.market().find_outcome(yes);
+    const auto *no_book = engine.market().find_outcome(no);
+    CHECK(yes_book != nullptr);
+    CHECK(no_book != nullptr);
+    if (yes_book != nullptr && no_book != nullptr) {
+      const auto best_ask = yes_book->asks().best_level();
+      CHECK(best_ask.has_value());
+      if (best_ask.has_value()) {
+        CHECK(best_ask->price() == Price::from_cents(35));
+        CHECK(best_ask->quantity() == Quantity::from_contracts(2));
+      }
+      CHECK(no_book->asks().empty());
+    }
+  }
+
+  {
     ReplayEngine engine{make_binary_market(yes, no), Money::from_cents(100)};
     const auto unknown = OutcomeId::from_string(std::string{"UNKNOWN"});
     const std::vector invalid_snapshot{
@@ -140,7 +249,7 @@ int main() {
 
     // Atomicity includes failure: no prefix of an invalid snapshot may leak
     // into the engine's live market.
-    CHECK_THROWS_AS(engine.seed_snapshot(invalid_snapshot),
+    CHECK_THROWS_AS(engine.apply_snapshot(invalid_snapshot),
                     std::invalid_argument);
 
     const auto *yes_book = engine.market().find_outcome(yes);
@@ -159,7 +268,7 @@ int main() {
     ReplayEngine engine{make_binary_market(yes, no), Money::from_cents(100)};
     const std::vector<MarketEvent> empty_snapshot{};
 
-    CHECK(!engine.seed_snapshot(empty_snapshot).has_value());
+    CHECK(!engine.apply_snapshot(empty_snapshot).has_value());
   }
 
   if (test_support::failures != 0) {

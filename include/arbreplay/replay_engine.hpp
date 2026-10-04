@@ -16,6 +16,9 @@ public:
   [[nodiscard]] std::optional<DetectedCompleteSetOpportunity>
   apply(const MarketEvent &event);
 
+  [[nodiscard]] std::optional<DetectedCompleteSetOpportunity>
+  apply_snapshot(const std::vector<MarketEvent> &events);
+
   [[nodiscard]] const Market &market() const noexcept;
 
   [[nodiscard]] std::vector<DetectedCompleteSetOpportunity>

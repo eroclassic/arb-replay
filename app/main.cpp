@@ -5,6 +5,7 @@
 #include <arbreplay/replay_engine.hpp>
 
 #include <cctype>
+#include <cstddef>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
@@ -136,10 +137,15 @@ int main(int argc, char *argv[]) {
     const auto events = arbreplay::parse_market_events_csv(input);
     auto market = make_binary_market();
     arbreplay::ReplayEngine engine{std::move(market), replay_input.payout};
-    const auto detections = engine.replay(events);
+    std::size_t detection_count{};
+    if (uses_snapshot_metadata) {
+      detection_count = engine.apply_snapshot(events).has_value() ? 1 : 0;
+    } else {
+      detection_count = engine.replay(events).size();
+    }
 
     std::cout << "events: " << events.size() << '\n';
-    std::cout << "detections: " << detections.size() << '\n';
+    std::cout << "detections: " << detection_count << '\n';
     return EXIT_SUCCESS;
   } catch (const std::exception &error) {
     std::cerr << "error: " << error.what() << '\n';
