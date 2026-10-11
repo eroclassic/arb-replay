@@ -79,8 +79,14 @@ ordered_unique_events(const std::vector<MarketEvent> &events) {
 
 } // namespace
 
-ReplayEngine::ReplayEngine(Market market, Money payout_per_set)
-    : market_{std::move(market)}, payout_per_set_{payout_per_set} {}
+ReplayEngine::ReplayEngine(Market market, Money payout_per_set,
+                           MarketEvent::Timestamp execution_latency)
+    : market_{std::move(market)}, payout_per_set_{payout_per_set},
+      execution_latency_{execution_latency} {
+  if (execution_latency_ < MarketEvent::Timestamp::zero()) {
+    throw std::invalid_argument{"execution latency cannot be negative"};
+  }
+}
 
 const Market &ReplayEngine::market() const noexcept { return market_; }
 

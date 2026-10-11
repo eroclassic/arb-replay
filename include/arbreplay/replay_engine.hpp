@@ -11,7 +11,9 @@ namespace arbreplay {
 
 class ReplayEngine {
 public:
-  explicit ReplayEngine(Market market, Money payout_per_set);
+  explicit ReplayEngine(Market market, Money payout_per_set,
+                        MarketEvent::Timestamp execution_latency =
+                            MarketEvent::Timestamp::zero());
 
   [[nodiscard]] std::optional<DetectedCompleteSetOpportunity>
   apply(const MarketEvent &event);
@@ -27,6 +29,7 @@ public:
 private:
   Market market_;
   Money payout_per_set_;
+  MarketEvent::Timestamp execution_latency_;
 };
 
 } // namespace arbreplay
