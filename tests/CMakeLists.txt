@@ -87,7 +87,7 @@ add_test(NAME arbreplay_cli_replay_test
     -DSAMPLE_EVENTS=${CMAKE_SOURCE_DIR}/data/sample_events.csv
     -P ${CMAKE_CURRENT_SOURCE_DIR}/cli_replay_test.cmake)
 
-foreach(test_case IN ITEMS invalid_path invalid_payout incorrect_arguments)
+foreach(test_case IN ITEMS invalid_path invalid_payout invalid_latency incorrect_arguments)
   add_test(NAME arbreplay_cli_${test_case}_test
     COMMAND ${CMAKE_COMMAND}
       -DARBREPLAY_CLI=$<TARGET_FILE:arbreplay_cli>

@@ -7,6 +7,9 @@
 #include "arbreplay/price.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <deque>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -77,6 +80,33 @@ ordered_unique_events(const std::vector<MarketEvent> &events) {
   return unique_events;
 }
 
+struct PendingCandidate {
+  MarketEvent::Timestamp arrival_time;
+  MarketEvent::ReplayKey signal_key;
+};
+
+void process_pending_until(
+    const Market &market, Money payout_per_set, MarketEvent::Timestamp cutoff,
+    bool include_equal, std::deque<PendingCandidate> &pending,
+    std::vector<DetectedCompleteSetOpportunity> &detections) {
+  while (!pending.empty()) {
+    const auto arrival = pending.front().arrival_time;
+    const bool due = include_equal ? arrival <= cutoff : arrival < cutoff;
+
+    if (!due) {
+      break;
+    }
+
+    const auto candidate = pending.front();
+    pending.pop_front();
+
+    auto opportunity = detect_complete_set_opportunity(market, payout_per_set);
+    if (opportunity.has_value()) {
+      detections.emplace_back(candidate.signal_key, std::move(*opportunity));
+    }
+  }
+}
+
 } // namespace
 
 ReplayEngine::ReplayEngine(Market market, Money payout_per_set,
@@ -141,15 +171,49 @@ ReplayEngine::apply_snapshot(const std::vector<MarketEvent> &events) {
 std::vector<DetectedCompleteSetOpportunity>
 ReplayEngine::replay(const std::vector<MarketEvent> &events) {
   std::vector<DetectedCompleteSetOpportunity> detections{};
+  std::deque<PendingCandidate> pending{};
   const auto unique_events = ordered_unique_events(events);
 
-  for (const auto &event : unique_events) {
-    auto detected_event = apply(event);
-    if (detected_event.has_value()) {
-      detections.push_back(std::move(*detected_event));
-    }
-  }
+  std::size_t group_begin = 0;
 
+  while (group_begin < unique_events.size()) {
+    const auto group_timestamp = unique_events[group_begin].timestamp();
+    std::size_t group_end = group_begin + 1;
+
+    while (group_end < unique_events.size() &&
+           unique_events[group_end].timestamp() == group_timestamp) {
+      ++group_end;
+    }
+
+    process_pending_until(market_, payout_per_set_, group_timestamp, false,
+                          pending, detections);
+
+    for (std::size_t i = group_begin; i < group_end; ++i) {
+      const auto &event = unique_events[i];
+      auto detected = apply(event);
+      if (detected.has_value()) {
+        if (execution_latency_ == MarketEvent::Timestamp::zero()) {
+          detections.push_back(std::move(*detected));
+          continue;
+        }
+
+        using TimestampRep = MarketEvent::Timestamp::rep;
+        const auto signal_time = event.timestamp().count();
+        const auto latency = execution_latency_.count();
+        if (latency > std::numeric_limits<TimestampRep>::max() - signal_time) {
+          throw std::overflow_error{"execution arrival timestamp overflow"};
+        }
+
+        pending.push_back(PendingCandidate{
+            event.timestamp() + execution_latency_, detected->replay_key()});
+      }
+    }
+
+    process_pending_until(market_, payout_per_set_, group_timestamp, true,
+                          pending, detections);
+
+    group_begin = group_end;
+  }
   return detections;
 }
 

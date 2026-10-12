@@ -5,6 +5,8 @@
 #include <arbreplay/replay_engine.hpp>
 
 #include <cctype>
+#include <charconv>
+#include <chrono>
 #include <cstddef>
 #include <cstdlib>
 #include <exception>
@@ -15,12 +17,14 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 
 namespace {
 
 constexpr std::string_view usage{
-    "usage: arbreplay replay <events.csv> --payout <amount>\n"
+    "usage: arbreplay replay <events.csv> --payout <amount> "
+    "[--latency-ns <nanoseconds>]\n"
     "       arbreplay replay <snapshot-directory>"};
 
 struct ReplayInput {
@@ -110,13 +114,28 @@ snapshot_input(const std::filesystem::path &directory) {
   return market;
 }
 
+[[nodiscard]] arbreplay::MarketEvent::Timestamp
+parse_latency(std::string_view value) {
+  arbreplay::MarketEvent::Timestamp::rep nanoseconds{};
+  const auto *begin = value.data();
+  const auto *end = begin + value.size();
+  const auto [parsed_end, error] = std::from_chars(begin, end, nanoseconds);
+  if (error != std::errc{} || parsed_end != end || nanoseconds < 0) {
+    throw std::invalid_argument{
+        "latency must be a non-negative integer number of nanoseconds"};
+  }
+  return arbreplay::MarketEvent::Timestamp{nanoseconds};
+}
+
 } // namespace
 
 int main(int argc, char *argv[]) {
   const bool is_replay = argc >= 2 && std::string_view{argv[1]} == "replay";
   const bool uses_snapshot_metadata = is_replay && argc == 3;
-  const bool uses_explicit_payout =
-      is_replay && argc == 5 && std::string_view{argv[3]} == "--payout";
+  const bool uses_explicit_payout = is_replay && (argc == 5 || argc == 7) &&
+                                    std::string_view{argv[3]} == "--payout";
+  const bool uses_latency =
+      argc == 7 && std::string_view{argv[5]} == "--latency-ns";
   if (!uses_snapshot_metadata && !uses_explicit_payout) {
     std::cerr << usage << '\n';
     return EXIT_FAILURE;
@@ -127,6 +146,9 @@ int main(int argc, char *argv[]) {
     const ReplayInput replay_input = uses_snapshot_metadata
                                          ? snapshot_input(path)
                                          : explicit_input(path, argv[4]);
+    const auto latency = uses_latency
+                             ? parse_latency(argv[6])
+                             : arbreplay::MarketEvent::Timestamp::zero();
 
     std::ifstream input{replay_input.events_path};
     if (!input.is_open()) {
@@ -136,7 +158,8 @@ int main(int argc, char *argv[]) {
 
     const auto events = arbreplay::parse_market_events_csv(input);
     auto market = make_binary_market();
-    arbreplay::ReplayEngine engine{std::move(market), replay_input.payout};
+    arbreplay::ReplayEngine engine{std::move(market), replay_input.payout,
+                                   latency};
     std::size_t detection_count{};
     if (uses_snapshot_metadata) {
       detection_count = engine.apply_snapshot(events).has_value() ? 1 : 0;

@@ -82,8 +82,9 @@ verify this property. Validated market-definition metadata must enforce it
 before external market data is accepted.
 
 The detector currently reports gross opportunities from displayed ask
-liquidity. Fees, latency, queue position, stale quotes, partial fills, and
-legging risk are not yet included.
+liquidity. Fees, queue position, stale quotes, partial fills, and legging risk
+are not yet included. CSV replay can optionally recheck an opportunity after a
+configured execution delay.
 
 ### Numeric representation
 
@@ -139,9 +140,23 @@ events: 6
 detections: 2
 ```
 
+Optionally model a fixed execution delay in nanoseconds:
+
+```sh
+./build/debug/arbreplay replay data/sample_events.csv \
+  --payout 1.000000 --latency-ns 500000000
+```
+
+Latency is a non-negative integer and defaults to zero. The replay engine
+rechecks a detected opportunity against the book when the delayed order would
+arrive; signals that are no longer available are discarded. This is a
+simplified availability check, not order execution or fill simulation. It
+applies to time-ordered CSV replay, not point-in-time snapshot directories.
+
 The CLI reports detected opportunities, not executed trades. It does not add
 their profits together because consecutive detections may refer to overlapping
-order-book liquidity.
+order-book liquidity. Fees, queue position, partial fills, and venue-specific
+execution behavior are not modeled.
 
 ## Polymarket snapshot capture
 

@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -144,6 +145,23 @@ int main() {
   {
     CHECK_THROWS_AS(make_engine(yes, no, MarketEvent::Timestamp{-1}),
                     std::invalid_argument);
+  }
+
+  {
+    auto engine = make_engine(yes, no, MarketEvent::Timestamp{1});
+    const std::vector snapshot{
+        MarketEvent{MarketEvent::Timestamp{4'000}, std::uint64_t{1}, yes,
+                    OrderSide::ask, Price::from_cents(40),
+                    Quantity::from_contracts(5)},
+        MarketEvent{MarketEvent::Timestamp{4'001}, std::uint64_t{2}, no,
+                    OrderSide::ask, Price::from_cents(50),
+                    Quantity::from_contracts(5)}};
+    static_cast<void>(engine.apply_snapshot(snapshot));
+
+    const std::vector events{MarketEvent{
+        MarketEvent::Timestamp::max(), std::uint64_t{3}, yes, OrderSide::ask,
+        Price::from_cents(40), Quantity::from_contracts(5)}};
+    CHECK_THROWS_AS(engine.replay(events), std::overflow_error);
   }
 
   if (test_support::failures != 0) {
