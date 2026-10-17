@@ -111,7 +111,6 @@ replay. See [the normalized market-event CSV format](docs/csv-format.md) and
 include/arbreplay/  Public C++ API and domain types
 src/                Engine implementation
 tests/              Unit and integration tests
-benchmarks/         Performance benchmarks
 data/               Synthetic and recorded market-data fixtures
 docs/               Architecture and research documentation
 ```
@@ -135,16 +134,15 @@ Replay a normalized CSV file as a binary YES/NO market:
 ```
 
 `--payout` is required and must be a positive fixed-point decimal. By default,
-the CLI prints a compact summary: event count, detection count, and each
-detection's estimated net profit. Profits are listed per detection rather than
-summed, because detections may refer to overlapping liquidity:
+the CLI prints a compact summary: event count, detection count, and the sum of
+estimated net profits across detections. This is a signal-profit sum, not
+realized P&L, because detections may refer to overlapping liquidity:
 
 ```text
 events: 6
 detections: 2
-estimated_net_profits (per detection; not summed):
-  1: 0.255000
-  2: 0.170000
+estimated_net_profit_sum: 0.425000
+note: signal-profit sum, not realized P&L; detections may overlap
 ```
 
 Pass `--verbose` to include signal timestamps, available quantity, costs, fees,
@@ -165,9 +163,9 @@ opportunity 1:
   available_sets: 8.500000
   payout_per_set: 1.000000
   total_cost: 8.245000
-  estimated_fees: 0.000000
+  estimated_fees: 0.082450
   gross_profit: 0.255000
-  estimated_net_profit: 0.255000
+  estimated_net_profit: 0.172550
   levels:
     - cost_per_set: 0.970000, quantity: 8.500000
 ```
@@ -198,10 +196,12 @@ arrive; signals that are no longer available are discarded. This is a
 simplified availability check, not order execution or fill simulation. It
 applies to time-ordered CSV replay, not point-in-time snapshot directories.
 
-The CLI reports detected opportunities, not executed trades. It does not add
-their profits together because consecutive detections may refer to overlapping
-order-book liquidity. Fees, queue position, partial fills, and venue-specific
-execution behavior are not modeled.
+The CLI reports detected opportunities, not executed trades. Compact mode sums
+estimated net profits across detections for a quick signal summary, but that
+sum is not realized P&L because detections may refer to overlapping order-book
+liquidity. Verbose mode shows each detection separately. Venue-specific fees,
+queue position, partial fills, and execution behavior are not simulated. The
+configurable flat fee is only an estimate, not a venue-specific fee schedule.
 
 ## Polymarket snapshot capture
 
@@ -251,10 +251,11 @@ For standalone CSV files, continue to supply the payout explicitly:
 ```
 
 The adapter currently captures a point-in-time snapshot, not historical data
-or a live stream. ArbReplay applies normalized rows one at a time, so detections
-reported while the initial snapshot is being assembled are not yet reliable
-trading signals. Atomic snapshot seeding is required before using those
-detections as research results.
+or a live stream. ArbReplay applies the snapshot rows atomically: it builds a
+temporary book, commits the complete snapshot, and then checks for an
+opportunity once. This avoids reporting detections from a partially assembled
+snapshot. A detected opportunity still reflects displayed liquidity and is
+not a guarantee of execution or realized profit.
 
 Run the complete test suite with AddressSanitizer and UndefinedBehaviorSanitizer:
 

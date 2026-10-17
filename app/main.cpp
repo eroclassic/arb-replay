@@ -84,17 +84,16 @@ void print_detections(
 
 void print_summary(
     const std::vector<arbreplay::DetectedCompleteSetOpportunity> &detections) {
+  auto estimated_net_profit_sum = arbreplay::Money::from_raw(0);
+  for (const auto &detected : detections) {
+    estimated_net_profit_sum =
+        estimated_net_profit_sum + detected.opportunity().net_profit();
+  }
   std::cout << "detections: " << detections.size() << '\n'
-            << "estimated_net_profits (per detection; not summed):\n";
-  if (detections.empty()) {
-    std::cout << "  none\n";
-    return;
-  }
-  for (std::size_t i = 0; i < detections.size(); ++i) {
-    std::cout << "  " << i + 1 << ": "
-              << format_fixed(detections[i].opportunity().net_profit().raw())
-              << '\n';
-  }
+            << "estimated_net_profit_sum: "
+            << format_fixed(estimated_net_profit_sum.raw()) << '\n'
+            << "note: signal-profit sum, not realized P&L; detections may "
+               "overlap\n";
 }
 
 [[nodiscard]] std::string read_file(const std::filesystem::path &path) {

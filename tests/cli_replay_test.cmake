@@ -23,9 +23,8 @@ endif()
 foreach(expected IN ITEMS
     "events: 6"
     "detections: 2"
-    "estimated_net_profits (per detection; not summed):"
-    "1: 0.255000"
-    "2: 0.170000")
+    "estimated_net_profit_sum: 0.425000"
+    "not realized P&L; detections may overlap")
   string(FIND "${output}" "${expected}" position)
   if(position EQUAL -1)
     message(FATAL_ERROR
@@ -131,7 +130,7 @@ if(NOT net_fee_result EQUAL 0)
     "\nstderr:\n${net_fee_error}")
 endif()
 
-foreach(expected IN ITEMS "estimated_net_profits" "1: 0.172550")
+foreach(expected IN ITEMS "estimated_net_profit_sum: 0.259250")
   string(FIND "${net_fee_output}" "${expected}" position)
   if(position EQUAL -1)
     message(FATAL_ERROR
