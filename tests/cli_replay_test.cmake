@@ -20,11 +20,55 @@ if(NOT result EQUAL 0)
     "CLI exited with ${result}\nstdout:\n${output}\nstderr:\n${error_output}")
 endif()
 
-foreach(expected IN ITEMS "events: 6" "detections: 2")
+foreach(expected IN ITEMS
+    "events: 6"
+    "detections: 2"
+    "estimated_net_profits (per detection; not summed):"
+    "1: 0.255000"
+    "2: 0.170000")
   string(FIND "${output}" "${expected}" position)
   if(position EQUAL -1)
     message(FATAL_ERROR
       "CLI output did not contain '${expected}'\nstdout:\n${output}")
+  endif()
+endforeach()
+
+string(FIND "${output}" "opportunity 1:" verbose_only_position)
+if(NOT verbose_only_position EQUAL -1)
+  message(FATAL_ERROR
+    "Default CLI output unexpectedly included verbose details\n"
+    "stdout:\n${output}")
+endif()
+
+execute_process(
+  COMMAND
+    "${ARBREPLAY_CLI}" replay "${SAMPLE_EVENTS}"
+    --payout 1.000000 --verbose
+  RESULT_VARIABLE verbose_result
+  OUTPUT_VARIABLE verbose_output
+  ERROR_VARIABLE verbose_error
+)
+
+if(NOT verbose_result EQUAL 0)
+  message(FATAL_ERROR
+    "Verbose CLI exited with ${verbose_result}\nstdout:\n${verbose_output}"
+    "\nstderr:\n${verbose_error}")
+endif()
+
+foreach(expected IN ITEMS
+    "opportunity 1:"
+    "available_sets: 8.500000"
+    "payout_per_set: 1.000000"
+    "total_cost: 8.245000"
+    "estimated_fees: 0.000000"
+    "gross_profit: 0.255000"
+    "estimated_net_profit: 0.255000"
+    "cost_per_set: 0.970000, quantity: 8.500000")
+  string(FIND "${verbose_output}" "${expected}" position)
+  if(position EQUAL -1)
+    message(FATAL_ERROR
+      "Verbose CLI output did not contain '${expected}'\n"
+      "stdout:\n${verbose_output}")
   endif()
 endforeach()
 
@@ -71,3 +115,26 @@ if(fee_position EQUAL -1)
     "Fee CLI output did not contain 'detections: 0'\n"
     "stdout:\n${fee_output}")
 endif()
+
+execute_process(
+  COMMAND
+    "${ARBREPLAY_CLI}" replay "${SAMPLE_EVENTS}"
+    --payout 1.000000 --fee-bps 100
+  RESULT_VARIABLE net_fee_result
+  OUTPUT_VARIABLE net_fee_output
+  ERROR_VARIABLE net_fee_error
+)
+
+if(NOT net_fee_result EQUAL 0)
+  message(FATAL_ERROR
+    "Net-fee CLI exited with ${net_fee_result}\nstdout:\n${net_fee_output}"
+    "\nstderr:\n${net_fee_error}")
+endif()
+
+foreach(expected IN ITEMS "estimated_net_profits" "1: 0.172550")
+  string(FIND "${net_fee_output}" "${expected}" position)
+  if(position EQUAL -1)
+    message(FATAL_ERROR
+      "CLI output did not contain '${expected}'\nstdout:\n${net_fee_output}")
+  endif()
+endforeach()

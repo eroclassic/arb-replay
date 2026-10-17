@@ -21,19 +21,81 @@
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 namespace {
 
 constexpr std::string_view usage{
     "usage: arbreplay replay <events.csv> --payout <amount> "
-    "[--latency-ns <nanoseconds>] [--fee-bps <basis-points>]\n"
+    "[--latency-ns <nanoseconds>] [--fee-bps <basis-points>] [--verbose]\n"
     "       arbreplay replay <snapshot-directory> "
-    "[--fee-bps <basis-points>]"};
+    "[--fee-bps <basis-points>] [--verbose]"};
 
 struct ReplayInput {
   std::filesystem::path events_path;
   arbreplay::Money payout;
 };
+
+[[nodiscard]] std::string format_fixed(std::int64_t raw) {
+  constexpr auto scale = static_cast<std::uint64_t>(arbreplay::Money::scale);
+  const bool negative = raw < 0;
+  const auto magnitude = negative
+                             ? static_cast<std::uint64_t>(-(raw + 1)) + 1U
+                             : static_cast<std::uint64_t>(raw);
+  const auto whole = magnitude / scale;
+  const auto fraction = magnitude % scale;
+  auto fraction_text = std::to_string(fraction);
+  fraction_text.insert(0, arbreplay::Money::precision - fraction_text.size(),
+                       '0');
+  return (negative ? "-" : "") + std::to_string(whole) + "." + fraction_text;
+}
+
+void print_detections(
+    const std::vector<arbreplay::DetectedCompleteSetOpportunity> &detections) {
+  std::cout << "detections: " << detections.size() << '\n';
+  for (std::size_t i = 0; i < detections.size(); ++i) {
+    const auto &detected = detections[i];
+    const auto &opportunity = detected.opportunity();
+    std::cout << "opportunity " << i + 1 << ":\n"
+              << "  signal_time_ns: " << detected.replay_key().first.count()
+              << '\n'
+              << "  sequence: " << detected.replay_key().second << '\n'
+              << "  available_sets: "
+              << format_fixed(opportunity.total_quantity().raw()) << '\n'
+              << "  payout_per_set: "
+              << format_fixed(opportunity.payout_per_set().raw()) << '\n'
+              << "  total_cost: " << format_fixed(opportunity.total_cost().raw())
+              << '\n'
+              << "  estimated_fees: "
+              << format_fixed(opportunity.estimated_fees().raw()) << '\n'
+              << "  gross_profit: "
+              << format_fixed(opportunity.gross_profit().raw()) << '\n'
+              << "  estimated_net_profit: "
+              << format_fixed(opportunity.net_profit().raw()) << '\n'
+              << "  levels:\n";
+    for (const auto &level : opportunity.levels()) {
+      std::cout << "    - cost_per_set: "
+                << format_fixed(level.cost_per_set().raw())
+                << ", quantity: " << format_fixed(level.quantity().raw())
+                << '\n';
+    }
+  }
+}
+
+void print_summary(
+    const std::vector<arbreplay::DetectedCompleteSetOpportunity> &detections) {
+  std::cout << "detections: " << detections.size() << '\n'
+            << "estimated_net_profits (per detection; not summed):\n";
+  if (detections.empty()) {
+    std::cout << "  none\n";
+    return;
+  }
+  for (std::size_t i = 0; i < detections.size(); ++i) {
+    std::cout << "  " << i + 1 << ": "
+              << format_fixed(detections[i].opportunity().net_profit().raw())
+              << '\n';
+  }
+}
 
 [[nodiscard]] std::string read_file(const std::filesystem::path &path) {
   std::ifstream input{path};
@@ -167,8 +229,14 @@ int main(int argc, char *argv[]) {
 
     auto latency = arbreplay::MarketEvent::Timestamp::zero();
     auto fee_rate = arbreplay::FeeRate{};
+    bool verbose = false;
     while (option_index < argc) {
       const std::string_view option{argv[option_index]};
+      if (option == "--verbose") {
+        verbose = true;
+        ++option_index;
+        continue;
+      }
       if (option_index + 1 >= argc) {
         throw std::invalid_argument{"missing value for " + std::string{option}};
       }
@@ -198,15 +266,22 @@ int main(int argc, char *argv[]) {
     auto market = make_binary_market();
     arbreplay::ReplayEngine engine{std::move(market), replay_input.payout,
                                    latency, fee_rate};
-    std::size_t detection_count{};
+    std::vector<arbreplay::DetectedCompleteSetOpportunity> detections{};
     if (has_snapshot_metadata) {
-      detection_count = engine.apply_snapshot(events).has_value() ? 1 : 0;
+      auto detection = engine.apply_snapshot(events);
+      if (detection.has_value()) {
+        detections.push_back(std::move(*detection));
+      }
     } else {
-      detection_count = engine.replay(events).size();
+      detections = engine.replay(events);
     }
 
     std::cout << "events: " << events.size() << '\n';
-    std::cout << "detections: " << detection_count << '\n';
+    if (verbose) {
+      print_detections(detections);
+    } else {
+      print_summary(detections);
+    }
     return EXIT_SUCCESS;
   } catch (const std::exception &error) {
     std::cerr << "error: " << error.what() << '\n';

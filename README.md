@@ -134,12 +134,42 @@ Replay a normalized CSV file as a binary YES/NO market:
 ./build/debug/arbreplay replay data/sample_events.csv --payout 1.000000
 ```
 
-`--payout` is required and must be a positive fixed-point decimal. The command
-prints the number of parsed events and detected gross opportunities:
+`--payout` is required and must be a positive fixed-point decimal. By default,
+the CLI prints a compact summary: event count, detection count, and each
+detection's estimated net profit. Profits are listed per detection rather than
+summed, because detections may refer to overlapping liquidity:
 
 ```text
 events: 6
 detections: 2
+estimated_net_profits (per detection; not summed):
+  1: 0.255000
+  2: 0.170000
+```
+
+Pass `--verbose` to include signal timestamps, available quantity, costs, fees,
+gross/net profit, and the opportunity's price levels. Amounts and quantities
+use six-decimal fixed-point notation:
+
+```sh
+./build/debug/arbreplay replay data/sample_events.csv \
+  --payout 1.000000 --fee-bps 100 --verbose
+```
+
+Example verbose opportunity:
+
+```text
+opportunity 1:
+  signal_time_ns: 1726401600000000000
+  sequence: 4
+  available_sets: 8.500000
+  payout_per_set: 1.000000
+  total_cost: 8.245000
+  estimated_fees: 0.000000
+  gross_profit: 0.255000
+  estimated_net_profit: 0.255000
+  levels:
+    - cost_per_set: 0.970000, quantity: 8.500000
 ```
 
 Optionally model a fixed execution delay in nanoseconds:
