@@ -18,7 +18,8 @@ struct AskCursor {
 };
 } // namespace
 [[nodiscard]] std::optional<CompleteSetOpportunity>
-detect_complete_set_opportunity(const Market &market, Money payout_per_set) {
+detect_complete_set_opportunity(const Market &market, Money payout_per_set,
+                                FeeRate fee_rate) {
   if (payout_per_set.raw() <= 0) {
     throw std::invalid_argument{"payout per set must be positive"};
   }
@@ -65,10 +66,17 @@ detect_complete_set_opportunity(const Market &market, Money payout_per_set) {
       break;
     }
 
-    opportunity_levels.push_back(CompleteSetOpportunityLevel{
-        combined_cost,
-        Quantity::from_raw(minimum_remaining),
-    });
+    const auto quantity = Quantity::from_raw(minimum_remaining);
+    const auto level_cost = combined_cost.multiply(quantity, RoundingMode::up);
+    const auto level_payout =
+        payout_per_set.multiply(quantity, RoundingMode::down);
+    const auto level_fees = fee_rate.apply(level_cost);
+    if (level_payout <= level_cost + level_fees) {
+      break;
+    }
+
+    opportunity_levels.push_back(
+        CompleteSetOpportunityLevel{combined_cost, quantity});
 
     bool liquidity_exhausted = false;
 
@@ -98,6 +106,7 @@ detect_complete_set_opportunity(const Market &market, Money payout_per_set) {
   return CompleteSetOpportunity{
       payout_per_set,
       opportunity_levels,
+      fee_rate,
   };
 }
 } // namespace arbreplay

@@ -2,6 +2,7 @@
 
 #include "arbreplay/market_event.hpp"
 #include <arbreplay/detected_complete_set_opportunity.hpp>
+#include <arbreplay/fee_rate.hpp>
 #include <arbreplay/market.hpp>
 #include <arbreplay/money.hpp>
 #include <optional>
@@ -11,9 +12,10 @@ namespace arbreplay {
 
 class ReplayEngine {
 public:
-  explicit ReplayEngine(Market market, Money payout_per_set,
-                        MarketEvent::Timestamp execution_latency =
-                            MarketEvent::Timestamp::zero());
+  explicit ReplayEngine(
+      Market market, Money payout_per_set,
+      MarketEvent::Timestamp execution_latency = MarketEvent::Timestamp::zero(),
+      FeeRate fee_rate = FeeRate{});
 
   [[nodiscard]] std::optional<DetectedCompleteSetOpportunity>
   apply(const MarketEvent &event);
@@ -30,6 +32,7 @@ private:
   Market market_;
   Money payout_per_set_;
   MarketEvent::Timestamp execution_latency_;
+  FeeRate fee_rate_;
 };
 
 } // namespace arbreplay

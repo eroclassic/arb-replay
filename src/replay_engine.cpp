@@ -86,8 +86,9 @@ struct PendingCandidate {
 };
 
 void process_pending_until(
-    const Market &market, Money payout_per_set, MarketEvent::Timestamp cutoff,
-    bool include_equal, std::deque<PendingCandidate> &pending,
+    const Market &market, Money payout_per_set, FeeRate fee_rate,
+    MarketEvent::Timestamp cutoff, bool include_equal,
+    std::deque<PendingCandidate> &pending,
     std::vector<DetectedCompleteSetOpportunity> &detections) {
   while (!pending.empty()) {
     const auto arrival = pending.front().arrival_time;
@@ -100,7 +101,8 @@ void process_pending_until(
     const auto candidate = pending.front();
     pending.pop_front();
 
-    auto opportunity = detect_complete_set_opportunity(market, payout_per_set);
+    auto opportunity =
+        detect_complete_set_opportunity(market, payout_per_set, fee_rate);
     if (opportunity.has_value()) {
       detections.emplace_back(candidate.signal_key, std::move(*opportunity));
     }
@@ -110,9 +112,10 @@ void process_pending_until(
 } // namespace
 
 ReplayEngine::ReplayEngine(Market market, Money payout_per_set,
-                           MarketEvent::Timestamp execution_latency)
+                           MarketEvent::Timestamp execution_latency,
+                           FeeRate fee_rate)
     : market_{std::move(market)}, payout_per_set_{payout_per_set},
-      execution_latency_{execution_latency} {
+      execution_latency_{execution_latency}, fee_rate_{fee_rate} {
   if (execution_latency_ < MarketEvent::Timestamp::zero()) {
     throw std::invalid_argument{"execution latency cannot be negative"};
   }
@@ -128,7 +131,8 @@ ReplayEngine::apply(const MarketEvent &event) {
     return std::nullopt;
   }
 
-  auto opportunity = detect_complete_set_opportunity(market_, payout_per_set_);
+  auto opportunity =
+      detect_complete_set_opportunity(market_, payout_per_set_, fee_rate_);
 
   if (!opportunity.has_value()) {
     return std::nullopt;
@@ -151,8 +155,8 @@ ReplayEngine::apply_snapshot(const std::vector<MarketEvent> &events) {
     apply_event_to_market(temporary_market, event);
   }
 
-  auto opportunity =
-      detect_complete_set_opportunity(temporary_market, payout_per_set_);
+  auto opportunity = detect_complete_set_opportunity(
+      temporary_market, payout_per_set_, fee_rate_);
   std::optional<DetectedCompleteSetOpportunity> opp;
 
   if (opportunity.has_value()) {
@@ -185,8 +189,8 @@ ReplayEngine::replay(const std::vector<MarketEvent> &events) {
       ++group_end;
     }
 
-    process_pending_until(market_, payout_per_set_, group_timestamp, false,
-                          pending, detections);
+    process_pending_until(market_, payout_per_set_, fee_rate_, group_timestamp,
+                          false, pending, detections);
 
     for (std::size_t i = group_begin; i < group_end; ++i) {
       const auto &event = unique_events[i];
@@ -209,8 +213,8 @@ ReplayEngine::replay(const std::vector<MarketEvent> &events) {
       }
     }
 
-    process_pending_until(market_, payout_per_set_, group_timestamp, true,
-                          pending, detections);
+    process_pending_until(market_, payout_per_set_, fee_rate_, group_timestamp,
+                          true, pending, detections);
 
     group_begin = group_end;
   }

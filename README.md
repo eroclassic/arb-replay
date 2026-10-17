@@ -4,9 +4,9 @@
 
 ArbReplay models prediction-market order books and detects depth-aware
 complete-set arbitrage across binary and multi-outcome markets. The current
-engine provides the in-memory market model, gross-opportunity detector, and
-deterministic event replay with strict CSV ingestion and an offline CLI.
-Execution simulation is the next layer.
+engine provides the in-memory market model, configurable fee-adjusted
+opportunity detection, and deterministic event replay with strict CSV ingestion
+and an offline CLI. Execution simulation is the next layer.
 
 ## Architecture
 
@@ -42,7 +42,7 @@ walks the ask depth without mutating the supplied market.
 | `Quantity` | Represents a non-negative contract quantity with six-decimal fixed-point precision |
 | `Money` | Represents signed monetary amounts with six-decimal fixed-point precision and checked arithmetic |
 | `CompleteSetOpportunityLevel` | Represents complete sets available at one combined cost |
-| `CompleteSetOpportunity` | Aggregates every profitable level and calculates total cost, payout, and gross profit |
+| `CompleteSetOpportunity` | Aggregates profitable levels and calculates cost, payout, estimated fees, and gross/net profit |
 
 ## Complete-set strategy
 
@@ -81,10 +81,12 @@ valid settlement result. The current `Market` model does not independently
 verify this property. Validated market-definition metadata must enforce it
 before external market data is accepted.
 
-The detector currently reports gross opportunities from displayed ask
-liquidity. Fees, queue position, stale quotes, partial fills, and legging risk
-are not yet included. CSV replay can optionally recheck an opportunity after a
-configured execution delay.
+With the default zero fee rate, the detector reports gross opportunities from
+displayed ask liquidity. A configurable flat fee estimate filters levels that
+would not remain profitable after fees. Queue position, stale quotes, partial
+fills, venue-specific fee schedules, and legging risk are not yet included. CSV
+replay can optionally recheck an opportunity after a configured execution
+delay.
 
 ### Numeric representation
 
@@ -146,6 +148,19 @@ Optionally model a fixed execution delay in nanoseconds:
 ./build/debug/arbreplay replay data/sample_events.csv \
   --payout 1.000000 --latency-ns 500000000
 ```
+
+Optionally configure a flat estimated taker fee in basis points (`200` means
+2% of the purchase notional):
+
+```sh
+./build/debug/arbreplay replay data/sample_events.csv \
+  --payout 1.000000 --fee-bps 200
+```
+
+The fee rate defaults to zero and is rounded up to the nearest representable
+`Money` unit. This configurable flat rate is an estimate, not a venue-specific
+fee schedule. Opportunities with zero or negative estimated net profit are
+not reported.
 
 Latency is a non-negative integer and defaults to zero. The replay engine
 rechecks a detected opportunity against the book when the delayed order would

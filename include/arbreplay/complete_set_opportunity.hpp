@@ -1,6 +1,7 @@
 #pragma once
 
 #include <arbreplay/complete_set_opportunity_level.hpp>
+#include <arbreplay/fee_rate.hpp>
 #include <arbreplay/money.hpp>
 #include <arbreplay/quantity.hpp>
 
@@ -14,8 +15,10 @@ namespace arbreplay {
 class CompleteSetOpportunity {
 public:
   CompleteSetOpportunity(Money payout_per_set,
-                         std::vector<CompleteSetOpportunityLevel> levels)
-      : payout_per_set_{payout_per_set}, levels_{std::move(levels)} {
+                         std::vector<CompleteSetOpportunityLevel> levels,
+                         FeeRate fee_rate = FeeRate{})
+      : payout_per_set_{payout_per_set}, levels_{std::move(levels)},
+        fee_rate_{fee_rate} {
     if (payout_per_set_.raw() <= 0) {
       throw std::invalid_argument{"payout per set must be positive"};
     }
@@ -28,6 +31,13 @@ public:
         throw std::invalid_argument{
             "every opportunity level must cost less than its payout"};
       }
+      const auto level_cost = level.total_cost();
+      const auto level_payout =
+          payout_per_set_.multiply(level.quantity(), RoundingMode::down);
+      if (level_payout <= level_cost + fee_rate_.apply(level_cost)) {
+        throw std::invalid_argument{
+            "every opportunity level must have positive net profit"};
+      }
     }
   }
 
@@ -39,6 +49,8 @@ public:
   levels() const noexcept {
     return levels_;
   }
+
+  [[nodiscard]] FeeRate fee_rate() const noexcept { return fee_rate_; }
 
   [[nodiscard]] Quantity total_quantity() const {
     std::int64_t total = 0;
@@ -70,11 +82,24 @@ public:
     return total_payout() - total_cost();
   }
 
+  [[nodiscard]] Money estimated_fees() const {
+    auto total = Money::from_raw(0);
+    for (const auto &level : levels_) {
+      total = total + fee_rate_.apply(level.total_cost());
+    }
+    return total;
+  }
+
+  [[nodiscard]] Money net_profit() const {
+    return gross_profit() - estimated_fees();
+  }
+
   [[nodiscard]] bool
   operator==(const CompleteSetOpportunity &other) const noexcept = default;
 
 private:
   Money payout_per_set_;
   std::vector<CompleteSetOpportunityLevel> levels_;
+  FeeRate fee_rate_;
 };
 } // namespace arbreplay

@@ -34,6 +34,10 @@ add_executable(arbreplay_money_test money_test.cpp)
 target_link_libraries(arbreplay_money_test PRIVATE arbreplay)
 add_test(NAME arbreplay_money_test COMMAND arbreplay_money_test)
 
+add_executable(arbreplay_fee_rate_test fee_rate_test.cpp)
+target_link_libraries(arbreplay_fee_rate_test PRIVATE arbreplay)
+add_test(NAME arbreplay_fee_rate_test COMMAND arbreplay_fee_rate_test)
+
 add_executable(arbreplay_complete_set_opportunity_test
   complete_set_opportunity_test.cpp)
 target_link_libraries(arbreplay_complete_set_opportunity_test
@@ -87,7 +91,7 @@ add_test(NAME arbreplay_cli_replay_test
     -DSAMPLE_EVENTS=${CMAKE_SOURCE_DIR}/data/sample_events.csv
     -P ${CMAKE_CURRENT_SOURCE_DIR}/cli_replay_test.cmake)
 
-foreach(test_case IN ITEMS invalid_path invalid_payout invalid_latency incorrect_arguments)
+foreach(test_case IN ITEMS invalid_path invalid_payout invalid_latency invalid_fee incorrect_arguments)
   add_test(NAME arbreplay_cli_${test_case}_test
     COMMAND ${CMAKE_COMMAND}
       -DARBREPLAY_CLI=$<TARGET_FILE:arbreplay_cli>

@@ -1,5 +1,6 @@
 #include <arbreplay/complete_set_opportunity.hpp>
 #include <arbreplay/complete_set_opportunity_level.hpp>
+#include <arbreplay/fee_rate.hpp>
 #include <arbreplay/money.hpp>
 #include <arbreplay/quantity.hpp>
 
@@ -14,6 +15,7 @@
 int main() {
   using arbreplay::CompleteSetOpportunity;
   using arbreplay::CompleteSetOpportunityLevel;
+  using arbreplay::FeeRate;
   using arbreplay::Money;
   using arbreplay::Quantity;
 
@@ -33,6 +35,8 @@ int main() {
   CHECK(opportunity.total_cost() == Money::from_cents(1'970));
   CHECK(opportunity.total_payout() == Money::from_cents(2'000));
   CHECK(opportunity.gross_profit() == Money::from_cents(30));
+  CHECK(opportunity.estimated_fees() == Money::from_raw(0));
+  CHECK(opportunity.net_profit() == opportunity.gross_profit());
   CHECK(
       (opportunity == CompleteSetOpportunity{Money::from_cents(100), levels}));
 
@@ -62,6 +66,18 @@ int main() {
   CHECK(fractional_opportunity.total_cost() == Money::from_decimal("0.5"));
   CHECK(fractional_opportunity.total_payout() == Money::from_decimal("1.5"));
   CHECK(fractional_opportunity.gross_profit() == Money::from_decimal("1"));
+
+  const std::vector fee_levels{CompleteSetOpportunityLevel{
+      Money::from_cents(97), Quantity::from_contracts(5)}};
+  const auto fee_adjusted = CompleteSetOpportunity{
+      Money::from_cents(100), fee_levels, FeeRate::from_basis_points(200)};
+  CHECK(fee_adjusted.estimated_fees() == Money::from_decimal("0.097"));
+  CHECK(fee_adjusted.gross_profit() == Money::from_decimal("0.15"));
+  CHECK(fee_adjusted.net_profit() == Money::from_decimal("0.053"));
+
+  CHECK_THROWS_AS((CompleteSetOpportunity{Money::from_cents(100), fee_levels,
+                                          FeeRate::from_basis_points(400)}),
+                  std::invalid_argument);
 
   if (test_support::failures != 0) {
     std::cerr << test_support::failures

@@ -49,3 +49,25 @@ if(latency_position EQUAL -1)
     "Latency CLI output did not contain 'detections: 1'\n"
     "stdout:\n${latency_output}")
 endif()
+
+execute_process(
+  COMMAND
+    "${ARBREPLAY_CLI}" replay "${SAMPLE_EVENTS}"
+    --payout 1.000000 --fee-bps 400
+  RESULT_VARIABLE fee_result
+  OUTPUT_VARIABLE fee_output
+  ERROR_VARIABLE fee_error
+)
+
+if(NOT fee_result EQUAL 0)
+  message(FATAL_ERROR
+    "Fee CLI exited with ${fee_result}\nstdout:\n${fee_output}"
+    "\nstderr:\n${fee_error}")
+endif()
+
+string(FIND "${fee_output}" "detections: 0" fee_position)
+if(fee_position EQUAL -1)
+  message(FATAL_ERROR
+    "Fee CLI output did not contain 'detections: 0'\n"
+    "stdout:\n${fee_output}")
+endif()

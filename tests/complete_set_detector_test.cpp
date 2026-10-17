@@ -1,4 +1,5 @@
 #include <arbreplay/complete_set_detector.hpp>
+#include <arbreplay/fee_rate.hpp>
 #include <arbreplay/market.hpp>
 #include <arbreplay/money.hpp>
 #include <arbreplay/outcome_id.hpp>
@@ -44,6 +45,7 @@ void add_outcome_with_raw_ask(arbreplay::Market &market, const char *id,
 
 int main() {
   using arbreplay::detect_complete_set_opportunity;
+  using arbreplay::FeeRate;
   using arbreplay::Market;
   using arbreplay::Money;
   using arbreplay::OutcomeId;
@@ -92,6 +94,42 @@ int main() {
       CHECK(opportunity->total_quantity() == Quantity::from_contracts(10));
       CHECK(opportunity->gross_profit() == Money::from_cents(30));
     }
+  }
+
+  {
+    Market market;
+    add_outcome_with_ask(market, "FEE_YES", 42, 5);
+    add_outcome_with_ask(market, "FEE_NO", 55, 20);
+    auto *yes_book =
+        market.find_outcome(OutcomeId::from_string(std::string{"FEE_YES"}));
+    CHECK(yes_book != nullptr);
+    if (yes_book != nullptr) {
+      yes_book->asks().update(arbreplay::Price::from_cents(44),
+                              Quantity::from_contracts(20));
+    }
+
+    const auto opportunity = detect_complete_set_opportunity(
+        market, Money::from_cents(100), FeeRate::from_basis_points(200));
+
+    CHECK(opportunity.has_value());
+    if (opportunity.has_value()) {
+      CHECK(opportunity->fee_rate() == FeeRate::from_basis_points(200));
+      CHECK(opportunity->levels().size() == 1);
+      CHECK(opportunity->total_quantity() == Quantity::from_contracts(5));
+      CHECK(opportunity->estimated_fees() == Money::from_decimal("0.097"));
+      CHECK(opportunity->gross_profit() == Money::from_decimal("0.15"));
+      CHECK(opportunity->net_profit() == Money::from_decimal("0.053"));
+    }
+  }
+
+  {
+    Market market;
+    add_outcome_with_ask(market, "EVEN_YES", 25, 10);
+    add_outcome_with_ask(market, "EVEN_NO", 25, 10);
+
+    CHECK(!detect_complete_set_opportunity(market, Money::from_cents(100),
+                                           FeeRate::from_basis_points(10'000))
+               .has_value());
   }
 
   {

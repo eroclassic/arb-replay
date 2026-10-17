@@ -1,3 +1,4 @@
+#include <arbreplay/fee_rate.hpp>
 #include <arbreplay/market.hpp>
 #include <arbreplay/market_event_csv.hpp>
 #include <arbreplay/money.hpp>
@@ -8,6 +9,7 @@
 #include <charconv>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
@@ -24,8 +26,9 @@ namespace {
 
 constexpr std::string_view usage{
     "usage: arbreplay replay <events.csv> --payout <amount> "
-    "[--latency-ns <nanoseconds>]\n"
-    "       arbreplay replay <snapshot-directory>"};
+    "[--latency-ns <nanoseconds>] [--fee-bps <basis-points>]\n"
+    "       arbreplay replay <snapshot-directory> "
+    "[--fee-bps <basis-points>]"};
 
 struct ReplayInput {
   std::filesystem::path events_path;
@@ -127,28 +130,63 @@ parse_latency(std::string_view value) {
   return arbreplay::MarketEvent::Timestamp{nanoseconds};
 }
 
+[[nodiscard]] arbreplay::FeeRate parse_fee_rate(std::string_view value) {
+  std::uint32_t basis_points{};
+  const auto *begin = value.data();
+  const auto *end = begin + value.size();
+  const auto [parsed_end, error] = std::from_chars(begin, end, basis_points);
+  if (error != std::errc{} || parsed_end != end) {
+    throw std::invalid_argument{
+        "fee rate must be a non-negative integer number of basis points"};
+  }
+  return arbreplay::FeeRate::from_basis_points(basis_points);
+}
+
 } // namespace
 
 int main(int argc, char *argv[]) {
-  const bool is_replay = argc >= 2 && std::string_view{argv[1]} == "replay";
-  const bool uses_snapshot_metadata = is_replay && argc == 3;
-  const bool uses_explicit_payout = is_replay && (argc == 5 || argc == 7) &&
-                                    std::string_view{argv[3]} == "--payout";
-  const bool uses_latency =
-      argc == 7 && std::string_view{argv[5]} == "--latency-ns";
-  if (!uses_snapshot_metadata && !uses_explicit_payout) {
+  if (argc < 3 || std::string_view{argv[1]} != "replay") {
     std::cerr << usage << '\n';
     return EXIT_FAILURE;
   }
 
   try {
     const std::filesystem::path path{argv[2]};
-    const ReplayInput replay_input = uses_snapshot_metadata
+    const bool has_snapshot_metadata =
+        std::filesystem::is_directory(path) &&
+        (argc == 3 || std::string_view{argv[3]} != "--payout");
+    if (!has_snapshot_metadata &&
+        (argc < 5 || std::string_view{argv[3]} != "--payout")) {
+      std::cerr << usage << '\n';
+      return EXIT_FAILURE;
+    }
+    const ReplayInput replay_input = has_snapshot_metadata
                                          ? snapshot_input(path)
                                          : explicit_input(path, argv[4]);
-    const auto latency = uses_latency
-                             ? parse_latency(argv[6])
-                             : arbreplay::MarketEvent::Timestamp::zero();
+    int option_index = has_snapshot_metadata ? 3 : 5;
+
+    auto latency = arbreplay::MarketEvent::Timestamp::zero();
+    auto fee_rate = arbreplay::FeeRate{};
+    while (option_index < argc) {
+      const std::string_view option{argv[option_index]};
+      if (option_index + 1 >= argc) {
+        throw std::invalid_argument{"missing value for " + std::string{option}};
+      }
+      const std::string_view value{argv[option_index + 1]};
+      if (option == "--latency-ns") {
+        if (has_snapshot_metadata) {
+          throw std::invalid_argument{
+              "execution latency requires time-ordered event CSV replay"};
+        }
+        latency = parse_latency(value);
+      } else if (option == "--fee-bps") {
+        fee_rate = parse_fee_rate(value);
+      } else {
+        std::cerr << usage << '\n';
+        return EXIT_FAILURE;
+      }
+      option_index += 2;
+    }
 
     std::ifstream input{replay_input.events_path};
     if (!input.is_open()) {
@@ -159,9 +197,9 @@ int main(int argc, char *argv[]) {
     const auto events = arbreplay::parse_market_events_csv(input);
     auto market = make_binary_market();
     arbreplay::ReplayEngine engine{std::move(market), replay_input.payout,
-                                   latency};
+                                   latency, fee_rate};
     std::size_t detection_count{};
-    if (uses_snapshot_metadata) {
+    if (has_snapshot_metadata) {
       detection_count = engine.apply_snapshot(events).has_value() ? 1 : 0;
     } else {
       detection_count = engine.replay(events).size();

@@ -1,11 +1,13 @@
 #pragma once
 
 #include <arbreplay/complete_set_opportunity.hpp>
+#include <arbreplay/fee_rate.hpp>
 #include <arbreplay/market.hpp>
 #include <arbreplay/money.hpp>
 
 #include <optional>
 namespace arbreplay {
 [[nodiscard]] std::optional<CompleteSetOpportunity>
-detect_complete_set_opportunity(const Market &market, Money payout_per_set);
+detect_complete_set_opportunity(const Market &market, Money payout_per_set,
+                                FeeRate fee_rate = FeeRate{});
 } // namespace arbreplay

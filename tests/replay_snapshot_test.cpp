@@ -1,3 +1,4 @@
+#include <arbreplay/fee_rate.hpp>
 #include <arbreplay/market.hpp>
 #include <arbreplay/market_event.hpp>
 #include <arbreplay/money.hpp>
@@ -54,6 +55,7 @@ make_profitable_snapshot(const arbreplay::OutcomeId &yes,
 } // namespace
 
 int main() {
+  using arbreplay::FeeRate;
   using arbreplay::MarketEvent;
   using arbreplay::Money;
   using arbreplay::OrderSide;
@@ -269,6 +271,14 @@ int main() {
     const std::vector<MarketEvent> empty_snapshot{};
 
     CHECK(!engine.apply_snapshot(empty_snapshot).has_value());
+  }
+
+  {
+    ReplayEngine engine{make_binary_market(yes, no), Money::from_cents(100),
+                        MarketEvent::Timestamp::zero(),
+                        FeeRate::from_basis_points(10'000)};
+    const auto snapshot = make_profitable_snapshot(yes, no);
+    CHECK(!engine.apply_snapshot(snapshot).has_value());
   }
 
   if (test_support::failures != 0) {
