@@ -111,4 +111,20 @@ if(Python3_Interpreter_FOUND)
       ${CMAKE_CURRENT_SOURCE_DIR}/polymarket_snapshot_test.py)
   set_tests_properties(arbreplay_polymarket_snapshot_test PROPERTIES
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+  add_test(NAME arbreplay_kalshi_snapshot_test
+    COMMAND ${CMAKE_COMMAND} -E env
+      ARBREPLAY_CLI=$<TARGET_FILE:arbreplay_cli>
+      PYTHONDONTWRITEBYTECODE=1
+      ${Python3_EXECUTABLE}
+      ${CMAKE_CURRENT_SOURCE_DIR}/kalshi_snapshot_test.py)
+  set_tests_properties(arbreplay_kalshi_snapshot_test PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+  add_test(NAME arbreplay_polymarket_recorder_test
+    COMMAND ${CMAKE_COMMAND} -E env
+      ARBREPLAY_CLI=$<TARGET_FILE:arbreplay_cli>
+      PYTHONDONTWRITEBYTECODE=1
+      ${Python3_EXECUTABLE}
+      ${CMAKE_CURRENT_SOURCE_DIR}/polymarket_recorder_test.py)
+  set_tests_properties(arbreplay_polymarket_recorder_test PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endif()

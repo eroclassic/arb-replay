@@ -257,6 +257,61 @@ opportunity once. This avoids reporting detections from a partially assembled
 snapshot. A detected opportunity still reflects displayed liquidity and is
 not a guarantee of execution or realized profit.
 
+## Kalshi snapshot capture
+
+Capture one Kalshi binary-market order book and normalize it into the same CSV
+format:
+
+```sh
+python3 tools/kalshi_snapshot.py MARKET_TICKER \
+  --output data/recordings/MARKET_TICKER
+```
+
+The adapter saves the raw `orderbook.json`, `metadata.json`, and normalized
+`events.csv`. Kalshi's binary order book provides YES and NO bid levels; the
+adapter maps each side's bids directly and derives the complementary asks at
+`1 - bid price`, preserving the level quantity. Replay the directory with the
+same CLI command used for Polymarket snapshots:
+
+```sh
+./build/debug/arbreplay replay data/recordings/MARKET_TICKER
+```
+
+The adapter handles point-in-time snapshots only; it does not connect to a live
+stream or place orders.
+
+## Record a live Polymarket book
+
+The read-only recorder subscribes to one binary market's public market stream,
+saves the raw WebSocket messages, and writes normalized absolute level updates
+to `events.csv`. Install its optional WebSocket dependency:
+
+```sh
+python3 -m pip install -r requirements-recorder.txt
+```
+
+Then choose a duration in seconds:
+
+```sh
+python3 tools/polymarket_recorder.py EVENT_SLUG \
+  --output data/recordings/EVENT_SLUG-live \
+  --duration-seconds 1800
+```
+
+If the event contains multiple eligible markets, pass `--market MARKET_SLUG`.
+The recorder creates `events.csv`, `raw.jsonl`, `metadata.json`, and
+`event.json`; it will not overwrite a non-empty output directory. A WebSocket
+disconnect ends the run and leaves metadata marked incomplete so a gap is not
+mistaken for a continuous capture. Inspect the recording, then replay it with:
+
+```sh
+./build/debug/arbreplay replay data/recordings/EVENT_SLUG-live
+```
+
+This first recorder supports Polymarket only. It records market data and does
+not place orders. Recorded feed updates are not a guarantee of executable
+liquidity or realized profit.
+
 Run the complete test suite with AddressSanitizer and UndefinedBehaviorSanitizer:
 
 ```sh
