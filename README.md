@@ -127,81 +127,28 @@ ctest --preset debug
 
 ## Replay CLI
 
-Replay a normalized CSV file as a binary YES/NO market:
+Replay a normalized event CSV (provide its payout) or a snapshot/recording
+directory (payout is read from its metadata):
 
 ```sh
 ./build/debug/arbreplay replay data/sample_events.csv --payout 1.000000
+./build/debug/arbreplay replay data/recordings/EVENT_SLUG-live
 ```
 
-`--payout` is required and must be a positive fixed-point decimal. By default,
-the CLI prints a compact summary: event count, detection count, and the sum of
-estimated net profits across detections. This is a signal-profit sum, not
-realized P&L, because detections may refer to overlapping liquidity:
+Default output is a compact summary: event count, detection count, and the sum
+of estimated net profits. Use `--verbose` for individual detections. The sum
+is not realized P&L; detections may overlap the same displayed liquidity.
 
-```text
-events: 6
-detections: 2
-estimated_net_profit_sum: 0.425000
-note: signal-profit sum, not realized P&L; detections may overlap
-```
+Optional flags for CSV replay:
 
-Pass `--verbose` to include signal timestamps, available quantity, costs, fees,
-gross/net profit, and the opportunity's price levels. Amounts and quantities
-use six-decimal fixed-point notation:
+- `--fee-bps 100`: estimated flat fee rate (100 bps = 1%). Defaults to zero;
+  opportunities with non-positive estimated net profit are omitted.
+- `--latency-ns 500000000`: recheck liquidity after a modeled delay. This
+  applies to time-ordered event CSVs, not point-in-time snapshots.
+- `--verbose`: include per-detection costs, fees, profit, quantity, and levels.
 
-```sh
-./build/debug/arbreplay replay data/sample_events.csv \
-  --payout 1.000000 --fee-bps 100 --verbose
-```
-
-Example verbose opportunity:
-
-```text
-opportunity 1:
-  signal_time_ns: 1726401600000000000
-  sequence: 4
-  available_sets: 8.500000
-  payout_per_set: 1.000000
-  total_cost: 8.245000
-  estimated_fees: 0.082450
-  gross_profit: 0.255000
-  estimated_net_profit: 0.172550
-  levels:
-    - cost_per_set: 0.970000, quantity: 8.500000
-```
-
-Optionally model a fixed execution delay in nanoseconds:
-
-```sh
-./build/debug/arbreplay replay data/sample_events.csv \
-  --payout 1.000000 --latency-ns 500000000
-```
-
-Optionally configure a flat estimated taker fee in basis points (`200` means
-2% of the purchase notional):
-
-```sh
-./build/debug/arbreplay replay data/sample_events.csv \
-  --payout 1.000000 --fee-bps 200
-```
-
-The fee rate defaults to zero and is rounded up to the nearest representable
-`Money` unit. This configurable flat rate is an estimate, not a venue-specific
-fee schedule. Opportunities with zero or negative estimated net profit are
-not reported.
-
-Latency is a non-negative integer and defaults to zero. The replay engine
-rechecks a detected opportunity against the book when the delayed order would
-arrive; signals that are no longer available are discarded. This is a
-simplified availability check, not order execution or fill simulation. It
-applies to time-ordered CSV replay, not point-in-time snapshot directories.
-
-The CLI reports detected opportunities, not executed trades. Compact mode sums
-estimated net profits across detections for a quick signal summary, but that
-sum is not realized P&L because detections may refer to overlapping order-book
-liquidity. Verbose mode shows each detection separately. Venue-specific fees,
-queue position, partial fills, and execution behavior are not simulated. The
-configurable flat fee is only an estimate, not a venue-specific fee schedule.
+Fees are a configurable estimate, not a venue-specific schedule. Latency is a
+simplified availability check, not order/fill simulation.
 
 ## Polymarket snapshot capture
 
@@ -250,12 +197,12 @@ For standalone CSV files, continue to supply the payout explicitly:
 ./build/debug/arbreplay replay data/sample_events.csv --payout 1.000000
 ```
 
-The adapter currently captures a point-in-time snapshot, not historical data
-or a live stream. ArbReplay applies the snapshot rows atomically: it builds a
-temporary book, commits the complete snapshot, and then checks for an
-opportunity once. This avoids reporting detections from a partially assembled
-snapshot. A detected opportunity still reflects displayed liquidity and is
-not a guarantee of execution or realized profit.
+The adapter captures one point-in-time book, not history. It is useful for a
+quick current-state check or smoke test; the recorder below is the right input
+for event-by-event replay and latency experiments. Snapshot rows are applied
+atomically before checking for an opportunity, so no partial-book detections
+are reported. Results still reflect displayed liquidity, not guaranteed fills
+or realized profit.
 
 ## Kalshi snapshot capture
 
@@ -290,28 +237,23 @@ to `events.csv`. Install its optional WebSocket dependency:
 python3 -m pip install -r requirements-recorder.txt
 ```
 
-Pass either the event slug or the full Polymarket event URL, then choose a
-duration in seconds. For example:
+Pass either an event slug or full event URL, then choose a recording duration.
+End-to-end example:
 
 ```sh
-EVENT_URL='https://polymarket.com/event/btc-updown-5m-1792283100'
-python3 tools/polymarket_recorder.py "$EVENT_URL" \
-  --output data/recordings/btc-updown-5m-1792283100-live \
+EVENT_SLUG="btc-updown-5m-1792283100"
+python3 tools/polymarket_recorder.py "$EVENT_SLUG" \
+  --output "data/recordings/${EVENT_SLUG}-live" \
   --duration-seconds 1800
+
+./build/debug/arbreplay replay "data/recordings/${EVENT_SLUG}-live"
 ```
 
-If the event contains multiple eligible markets, pass `--market MARKET_SLUG`.
-The recorder creates `events.csv`, `raw.jsonl`, `metadata.json`, and
-`event.json`. If that output directory already contains files, it asks before
-deleting them; answering `n` (the default) leaves the previous recording
-untouched. A WebSocket disconnect ends the run and leaves metadata marked
-incomplete so a gap is not mistaken for a continuous capture. Inspect the
-recording, then replay it with:
-
-```sh
-./build/debug/arbreplay replay \
-  data/recordings/btc-updown-5m-1792283100-live
-```
+If the event has multiple eligible markets, add `--market MARKET_SLUG` to the
+record command. The recorder writes `events.csv`, `raw.jsonl`, `metadata.json`,
+and `event.json`. If the output folder is non-empty, it asks before deleting
+its contents (`n` is the default). A WebSocket disconnect marks the capture
+incomplete rather than implying uninterrupted data.
 
 This first recorder supports Polymarket only. It records market data and does
 not place orders. Recorded feed updates are not a guarantee of executable
