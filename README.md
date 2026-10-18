@@ -290,22 +290,27 @@ to `events.csv`. Install its optional WebSocket dependency:
 python3 -m pip install -r requirements-recorder.txt
 ```
 
-Then choose a duration in seconds:
+Pass either the event slug or the full Polymarket event URL, then choose a
+duration in seconds. For example:
 
 ```sh
-python3 tools/polymarket_recorder.py EVENT_SLUG \
-  --output data/recordings/EVENT_SLUG-live \
+EVENT_URL='https://polymarket.com/event/btc-updown-5m-1792283100'
+python3 tools/polymarket_recorder.py "$EVENT_URL" \
+  --output data/recordings/btc-updown-5m-1792283100-live \
   --duration-seconds 1800
 ```
 
 If the event contains multiple eligible markets, pass `--market MARKET_SLUG`.
 The recorder creates `events.csv`, `raw.jsonl`, `metadata.json`, and
-`event.json`; it will not overwrite a non-empty output directory. A WebSocket
-disconnect ends the run and leaves metadata marked incomplete so a gap is not
-mistaken for a continuous capture. Inspect the recording, then replay it with:
+`event.json`. If that output directory already contains files, it asks before
+deleting them; answering `n` (the default) leaves the previous recording
+untouched. A WebSocket disconnect ends the run and leaves metadata marked
+incomplete so a gap is not mistaken for a continuous capture. Inspect the
+recording, then replay it with:
 
 ```sh
-./build/debug/arbreplay replay data/recordings/EVENT_SLUG-live
+./build/debug/arbreplay replay \
+  data/recordings/btc-updown-5m-1792283100-live
 ```
 
 This first recorder supports Polymarket only. It records market data and does

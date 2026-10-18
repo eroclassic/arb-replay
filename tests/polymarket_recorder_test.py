@@ -31,6 +31,32 @@ class PolymarketRecorderTest(unittest.TestCase):
             "https://gamma-api.polymarket.com/events/slug/mlb-tb-cle-2026-10-16",
         )
 
+    def test_accepts_slug_or_event_link(self) -> None:
+        self.assertEqual(
+            polymarket_recorder.event_slug_from_input("btc-updown-5m-1792283100"),
+            "btc-updown-5m-1792283100",
+        )
+        self.assertEqual(
+            polymarket_recorder.event_slug_from_input(
+                "https://polymarket.com/event/btc-updown-5m-1792283100"
+            ),
+            "btc-updown-5m-1792283100",
+        )
+        self.assertEqual(
+            polymarket_recorder.event_slug_from_input(
+                "https://polymarket.com/sports/mlb/mlb-tb-cle-2026-10-16"
+            ),
+            "mlb-tb-cle-2026-10-16",
+        )
+
+    def test_rejects_non_polymarket_links(self) -> None:
+        with self.assertRaisesRegex(
+            polymarket_recorder.RecorderError, "polymarket.com"
+        ):
+            polymarket_recorder.event_slug_from_input(
+                "https://example.com/event/btc-updown-5m-1792283100"
+            )
+
     def test_records_initial_books_and_absolute_level_changes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             writer = polymarket_recorder.EventWriter(
@@ -138,6 +164,45 @@ class PolymarketRecorderTest(unittest.TestCase):
             ):
                 polymarket_recorder.EventWriter(output, MARKET)
             self.assertEqual((output / "keep.txt").read_text(), "existing")
+
+    def test_overwrite_prompt_decline_preserves_existing_capture(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            output = Path(temporary_directory) / "capture"
+            output.mkdir()
+            existing_file = output / "events.csv"
+            existing_file.write_text("keep this capture", encoding="utf-8")
+
+            accepted = polymarket_recorder.prepare_output_directory(
+                output, input_fn=lambda _prompt: "n"
+            )
+
+            self.assertFalse(accepted)
+            self.assertEqual(existing_file.read_text(encoding="utf-8"), "keep this capture")
+
+    def test_overwrite_prompt_yes_clears_only_the_recording_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            output = Path(temporary_directory) / "capture"
+            nested = output / "nested"
+            nested.mkdir(parents=True)
+            (nested / "old.csv").write_text("old", encoding="utf-8")
+            sibling = Path(temporary_directory) / "keep.txt"
+            sibling.write_text("keep", encoding="utf-8")
+
+            accepted = polymarket_recorder.prepare_output_directory(
+                output, input_fn=lambda _prompt: "yes"
+            )
+
+            self.assertTrue(accepted)
+            self.assertEqual(list(output.iterdir()), [])
+            self.assertEqual(sibling.read_text(encoding="utf-8"), "keep")
+
+    def test_never_clears_project_root(self) -> None:
+        with self.assertRaisesRegex(
+            polymarket_recorder.RecorderError, "protected directory"
+        ):
+            polymarket_recorder.prepare_output_directory(
+                PROJECT_ROOT, input_fn=lambda _prompt: "yes"
+            )
 
     def test_rejects_update_before_initial_book_snapshot(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

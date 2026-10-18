@@ -7,12 +7,13 @@ import argparse
 import asyncio
 import csv
 import json
+import shutil
 import sys
 import time
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Mapping, Sequence
-from urllib.parse import quote
+from typing import Any, Callable, Mapping, Sequence
+from urllib.parse import quote, unquote, urlsplit
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -28,6 +29,62 @@ OUTCOME_BY_SIDE = {"BUY": "bid", "SELL": "ask"}
 
 class RecorderError(RuntimeError):
     """Raised when the live feed cannot be recorded safely."""
+
+
+def prepare_output_directory(
+    output_directory: Path, *, input_fn: Callable[[str], str] | None = None
+) -> bool:
+    """Ask before clearing a non-empty recording directory; return False on decline."""
+    if output_directory.is_symlink():
+        raise RecorderError("refusing to clear an output directory symlink")
+    if not output_directory.exists():
+        return True
+    if not output_directory.is_dir():
+        raise RecorderError(f"output path is not a directory: {output_directory}")
+
+    existing_items = list(output_directory.iterdir())
+    if not existing_items:
+        return True
+
+    resolved_target = output_directory.resolve()
+    project_root = PROJECT_ROOT.resolve()
+    recordings_root = (PROJECT_ROOT / "data" / "recordings").resolve()
+    protected_targets = {
+        Path(resolved_target.anchor),
+        Path.home().resolve(),
+        project_root,
+        (PROJECT_ROOT / "data").resolve(),
+        recordings_root,
+    }
+    if resolved_target in protected_targets or project_root.is_relative_to(
+        resolved_target
+    ) or Path.home().resolve().is_relative_to(resolved_target):
+        raise RecorderError(
+            f"refusing to empty a broad or protected directory: {output_directory}"
+        )
+
+    prompt = (
+        f"Output directory is not empty: {output_directory}. "
+        "Delete its existing contents before recording? [y/N] "
+    )
+    try:
+        answer = (input_fn or input)(prompt).strip().lower()
+    except EOFError as error:
+        raise RecorderError(
+            "cannot confirm overwrite without interactive input; "
+            "choose a new output directory"
+        ) from error
+    if answer not in {"y", "yes"}:
+        return False
+
+    # Re-read entries only after confirmation. Never follow symlinks inside the
+    # target directory; unlink them as entries instead.
+    for item in output_directory.iterdir():
+        if item.is_symlink() or not item.is_dir():
+            item.unlink()
+        else:
+            shutil.rmtree(item)
+    return True
 
 
 class EventWriter:
@@ -172,6 +229,7 @@ async def record_market(
     duration_seconds: int,
     market_slug: str | None = None,
 ) -> None:
+    event_slug = event_slug_from_input(event_slug)
     try:
         import websockets
     except ImportError as error:
@@ -281,7 +339,9 @@ def _argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Record a Polymarket binary market's live order book."
     )
-    parser.add_argument("event_slug", help="Polymarket event slug")
+    parser.add_argument(
+        "event_slug", help="Polymarket event slug or full event URL"
+    )
     parser.add_argument(
         "--market", dest="market_slug", help="market slug for a multi-market event"
     )
@@ -301,15 +361,51 @@ def event_url_for_slug(event_slug: str) -> str:
     )
 
 
+def event_slug_from_input(identifier: str) -> str:
+    """Accept an event slug or a Polymarket event URL."""
+    value = identifier.strip()
+    if value.startswith(("polymarket.com/", "www.polymarket.com/")):
+        value = "https://" + value
+
+    parsed = urlsplit(value)
+    if parsed.scheme or parsed.netloc:
+        if parsed.scheme not in {"http", "https"} or parsed.hostname not in {
+            "polymarket.com",
+            "www.polymarket.com",
+        }:
+            raise RecorderError("URL must be an http(s) link from polymarket.com")
+
+        parts = [unquote(part) for part in parsed.path.split("/") if part]
+        if len(parts) == 2 and parts[0] == "event":
+            slug = parts[1]
+        elif len(parts) == 3 and parts[0] == "sports":
+            slug = parts[2]
+        else:
+            raise RecorderError(
+                "URL must be a Polymarket event link or sports event link"
+            )
+        if not slug:
+            raise RecorderError("Polymarket event URL is missing its slug")
+        return slug
+
+    if not value or "/" in value:
+        raise RecorderError("provide an event slug or a Polymarket event URL")
+    return value
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = _argument_parser().parse_args(argv)
     if arguments.duration_seconds <= 0:
         print("error: duration must be a positive number of seconds", file=sys.stderr)
         return 2
     try:
+        event_slug = event_slug_from_input(arguments.event_slug)
+        if not prepare_output_directory(arguments.output):
+            print("cancelled; existing recording was left untouched", file=sys.stderr)
+            return 1
         asyncio.run(
             record_market(
-                arguments.event_slug,
+                event_slug,
                 arguments.output,
                 arguments.duration_seconds,
                 arguments.market_slug,
